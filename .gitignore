@@ -1,4 +1,27 @@
-.env
-*.json
+# Byte-compiled / cache files
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Environment and dependency files
+.venv/
+env/
+*.egg-info/
+pip-log.txt
+
+# Streamlit secrets
+.env
+.streamlit/secrets.toml
+
+# Databases and local data
+*.db
+*.sqlite
+*.log
+data/
+*.json
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
