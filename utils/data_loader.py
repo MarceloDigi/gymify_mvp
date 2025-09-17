@@ -57,7 +57,7 @@ def load_data(aggregated_path=None, muscles_path=None, user_id=None):
 
     # Load muscle breakdown data
     df_muscles = query_to_dataframe(f"""
-        SELECT * FROM muscle_breakdown
+        SELECT * FROM workouts_by_muscle
         {user_filter}
         ORDER BY fecha DESC
     """)
