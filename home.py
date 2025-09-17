@@ -7,32 +7,41 @@ import sys
 import os
 from pathlib import Path
 
-# Add parent directory to path so we can import auth modules
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from auth.authenticator import check_authentication, logout_button
+# Agregar variable para activar/desactivar autenticación
+USE_AUTH = True  # <- CAMBIA A True cuando quieras volver a activar login
 
-# ⚠️ Ya no se necesita crear la base de datos local ni importar CSVs
+if USE_AUTH:
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from auth.authenticator import check_authentication, logout_button
+    is_authenticated, username, name, authenticator = check_authentication()
 
-# Check authentication
-is_authenticated, username, name, authenticator = check_authentication()
+    if not is_authenticated:
+        st.stop()
 
-if is_authenticated:
-    # Show logout button in sidebar
     with st.sidebar:
         st.write(f"👋 Hola, {name}")
         logout_button(authenticator)
 
-    # Main content
-    st.title("🏠 Bienvenido al Dashboard de Entrenamiento")
+else:
+    username = "admin"
+    name = "Administrador"
+    st.warning("🔓 Modo sin autenticación activo. Todos los datos están visibles.")
+    with st.sidebar:
+        st.write(f"👋 Hola, {name} (modo libre)")
 
-    st.markdown("Usa el menú lateral izquierdo para navegar entre las páginas 📊.")
+# Main content
+st.title("🏠 Bienvenido al Dashboard de Entrenamiento")
 
-    # Admin section
-    if username == "admin":
-        st.subheader("🔧 Administración")
+st.markdown("Usa el menú lateral izquierdo para navegar entre las páginas 📊.")
 
-        # Información administrativa (pero sin botón de carga de CSV)
-        with st.expander("Información del Sistema"):
-            st.info("La aplicación ahora está conectada a una base de datos MySQL.")
-            st.write("📦 Los datos deben estar precargados en MySQL.")
-            st.write("🔄 Puedes gestionar la carga de datos usando scripts externos de ETL.")
+# Admin section
+if username == "admin":
+    st.subheader("🔧 Administración")
+
+    st.write("🆔 ID de usuario logueado:", st.session_state.get("user_id", "⚠️ No definido"))
+    st.write("👤 Username:", username)
+
+    with st.expander("Información del Sistema"):
+        st.info("La aplicación ahora está conectada a una base de datos MySQL.")
+        st.write("📦 Los datos deben estar precargados en MySQL.")
+        st.write("🔄 Puedes gestionar la carga de datos usando scripts externos de ETL.")
