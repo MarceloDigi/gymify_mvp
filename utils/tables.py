@@ -189,7 +189,7 @@ def display_summary_table(df, group_col, title, custom_formats: dict = None):
     st.subheader(title)
     st.dataframe(styled)
 
-def process_historical_routine(df):
+def reformat_historical_routine_for_display(df):
     """
     Process the historical routine DataFrame to prepare it for display.
     Renames columns, formats dates, and calculates height for display.
@@ -229,8 +229,8 @@ def editable_dataframe(df_template, ejercicio, idx):
         # Filter the DataFrame to only include the selected exercise
         df_filtered = df_template.loc[df_template['exercise'] == ejercicio,['exercise','reprange']].copy()
         df_filtered['reps_real'] = 0
-        df_filtered['weight'] = 0
-        df_filtered['rir'] = 0
+        df_filtered['weight'] = 0.0
+        df_filtered['rir'] = np.nan
     else:
         default_rows = 4
         df_filtered = pd.DataFrame(
@@ -238,8 +238,8 @@ def editable_dataframe(df_template, ejercicio, idx):
             'exercise': [ejercicio] * default_rows,
             'reprange': [np.nan] * default_rows,
             'reps_real': [0] * default_rows, 
-            'weight': [0] * default_rows, 
-            'rir': [0] * default_rows}
+            'weight': [0.0] * default_rows, 
+            'rir': np.nan * default_rows}
         )
     new_names = {
         'exercise':'Ejercicio',
@@ -249,7 +249,12 @@ def editable_dataframe(df_template, ejercicio, idx):
         'rir':'RIR'
     }
     df_filtered.rename(columns=new_names, inplace=True)
+    df_filtered.reset_index(inplace=True, drop=True)
     
-    edited_df = st.data_editor(df_filtered, disabled=('Ejercicio','Rango'), key=f"editor_{ejercicio}_{idx}")
+    edited_df = st.data_editor(
+                            df_filtered, 
+                            disabled=('Ejercicio'), 
+                            key=f"editor_{ejercicio}_{idx}", 
+                            num_rows="dynamic")
 
     return edited_df
