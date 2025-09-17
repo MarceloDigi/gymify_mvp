@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import datawrangling as dw
+import streamlit_dashboard.services.datawrangling as dw
 
 sql_hypertrophy['id_user'] = np.nan
 templates_test['id_user'] = np.nan    
