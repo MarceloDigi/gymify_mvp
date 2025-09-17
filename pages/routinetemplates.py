@@ -1,7 +1,29 @@
+"""
+Routine Templates Page
+
+This script generates the "Routine Templates" page for the Streamlit dashboard. It allows users to view predefined workout routines and their associated exercises.
+
+Features:
+- **Data Loading**: Loads routine templates and exercise data from CSV files.
+- **Routine Templates**: Displays predefined routines with their exercises and repetition ranges.
+- **Exercise Details**: Displays detailed information about exercises, including muscle groups and roles.
+
+Modules:
+- `load_and_prepare_data`: Loads and preprocesses data from CSV files.
+- `filter_by_routine`: Filters data based on the selected routine.
+- `rep_concatenate`: Formats repetition data for display.
+
+Dependencies:
+- `streamlit`
+- `pandas`
+- Utility modules: `data_loader`, `datawrangling`
+
+"""
+
 import streamlit as st
 import pandas as pd
 from utils.data_loader import load_and_prepare_data
-from utils.datawrangling import filter_by_routine, rep_concatenate
+from streamlit_dashboard.services.datawrangling import filter_by_routine, rep_concatenate
 
 st.set_page_config(page_title="Plantillas de Rutinas", layout="wide")
 
@@ -56,3 +78,5 @@ with tab2:
     num_rows = exercises.shape[0]
     height = 100 + num_rows * row_height  # 100 for header padding
     st.dataframe(exercises.set_index('Ejercicio'), height=height)
+
+# No main function in this script; the logic is executed directly at the module level.

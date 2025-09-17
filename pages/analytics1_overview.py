@@ -1,3 +1,31 @@
+"""
+Analytics Overview Page
+
+This script generates the "Analytics Overview" page for the Streamlit dashboard. It provides users with a detailed view of their training data, including KPIs, charts, and summary tables.
+
+Features:
+- **Data Loading**: Fetches user-specific training data from the database.
+- **Date Filtering**: Allows users to select a date range and granularity for analysis.
+- **KPI Calculation**: Computes key performance indicators (KPIs) for the selected period.
+- **Charts and Tables**: Displays visualizations and summary tables for daily, routine, and muscle-level metrics.
+
+Modules:
+- `load_data`: Loads training data for the authenticated user.
+- `filter_by_date`: Filters data based on the selected date range.
+- `compute_kpis`: Calculates KPIs for the current and previous periods.
+- `display_kpis`: Displays KPIs in the dashboard.
+- `calculate_summary_table`: Aggregates data for summary tables.
+- `plot_line_vs_bar`: Generates a combined line and bar chart for workload and series metrics.
+- `display_summary_table`: Renders summary tables for daily, routine, and muscle-level metrics.
+
+Dependencies:
+- `streamlit`
+- `pandas`
+- `datetime`
+- Utility modules: `data_loader`, `kpis`, `tables`, `charts`, `styling`, `general`
+
+"""
+
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
@@ -13,6 +41,19 @@ from utils.general import format_fecha_column
 st.set_page_config(page_title="Dashboard Entrenamiento", layout="wide")
 
 def main():
+    """
+    Main function to render the Analytics Overview page.
+
+    This function handles the following tasks:
+    - Retrieves user-specific training data from the database.
+    - Applies date range and granularity filters to the data.
+    - Computes KPIs for the selected and previous periods.
+    - Generates and displays charts and summary tables for the data.
+
+    Returns:
+        None
+    """
+
     # Get user ID from session state if authenticated
     user_id = st.session_state.get("user_id", None)
 

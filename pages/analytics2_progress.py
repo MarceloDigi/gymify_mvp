@@ -1,3 +1,32 @@
+"""
+Progress Analysis Page
+
+This script generates the "Progress Analysis" page for the Streamlit dashboard. It provides users with detailed insights into their weekly compound and isolated exercise progress, including KPIs, charts, and summary tables.
+
+Features:
+- **Data Loading**: Fetches user-specific training data from the database.
+- **Date Filtering**: Allows users to select a date range and granularity for analysis.
+- **KPI Calculation**: Computes KPIs for compound and isolated exercises.
+- **Charts and Tables**: Displays visualizations and summary tables for exercise-level metrics.
+- **Detailed Analysis**: Provides breakdowns for individual exercises, including RIR ranges and weekly progress.
+
+Modules:
+- `load_data`: Loads training data for the authenticated user.
+- `filter_by_date`: Filters data based on the selected date range.
+- `compute_kpis`: Calculates KPIs for compound and isolated exercises.
+- `display_kpis`: Displays KPIs in the dashboard.
+- `calculate_summary_table`: Aggregates data for summary tables.
+- `plot_line_vs_bar`: Generates combined line and bar charts for workload and other metrics.
+- `display_summary_table`: Renders summary tables for exercise-level metrics.
+
+Dependencies:
+- `streamlit`
+- `pandas`
+- `datetime`
+- Utility modules: `data_loader`, `kpis`, `tables`, `charts`, `general`
+
+"""
+
 import streamlit as st
 import pandas as pd
 from datetime import timedelta, datetime
@@ -10,6 +39,20 @@ from utils.general import format_fecha_column
 st.set_page_config(page_title="Análisis Compound Semanal", layout="wide")
 
 def main():
+    """
+    Main function to render the Progress Analysis page.
+
+    This function handles the following tasks:
+    - Retrieves user-specific training data from the database.
+    - Applies date range and granularity filters to the data.
+    - Computes KPIs for compound and isolated exercises.
+    - Generates and displays charts and summary tables for the data.
+    - Provides detailed breakdowns for individual exercises.
+
+    Returns:
+        None
+    """
+
     # Get user ID from session state if authenticated
     user_id = st.session_state.get("user_id", None)
 

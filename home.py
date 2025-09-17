@@ -1,3 +1,24 @@
+"""
+Home Page Script
+
+This script serves as the entry point for the Streamlit dashboard. It sets up the page configuration, handles user authentication, and displays the main dashboard content.
+
+Features:
+- **Authentication**: Supports toggling authentication on or off.
+- **User Greeting**: Displays a personalized greeting for authenticated users.
+- **Navigation Instructions**: Guides users to navigate through the dashboard.
+- **Admin Section**: Provides additional information and tools for admin users.
+
+Modules:
+- `check_authentication`: Verifies user authentication status.
+- `logout_button`: Displays a logout button for authenticated users.
+
+Dependencies:
+- `streamlit`
+- `os`, `sys`, `pathlib`
+
+"""
+
 import streamlit as st
 
 # Set page config (must be the first Streamlit command)

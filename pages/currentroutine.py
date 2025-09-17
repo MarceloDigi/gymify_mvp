@@ -1,3 +1,34 @@
+"""
+Current Routine Page
+
+This script generates the "Current Routine" page for the Streamlit dashboard. It allows users to view, edit, and save their current workout routines, as well as calculate their one-rep max (1RM).
+
+Features:
+- **Data Loading**: Fetches user-specific routine data from Google Sheets and the database.
+- **Routine History**: Displays historical data for the selected routine.
+- **Routine Editing**: Provides an interface for editing and adding exercises to the current routine.
+- **Data Validation**: Validates the entered routine data before saving.
+- **1RM Calculator**: Includes a calculator for estimating one-rep max values.
+
+Modules:
+- `load_dim_data`: Loads dimension data for exercises.
+- `read_and_clean_sheet`: Reads and cleans data from Google Sheets.
+- `filter_by_routine`: Filters data based on the selected routine.
+- `editable_dataframe`: Provides an editable interface for routine data.
+- `validate_current_routine`: Validates the entered routine data.
+- `load_data_into_gsheet`: Saves validated data back to Google Sheets.
+- `run_1rm_calculator`: Runs the one-rep max calculator.
+
+Dependencies:
+- `streamlit`
+- `pandas`
+- `numpy`
+- `dotenv`
+- `gspread`
+- Utility modules: `data_loader`, `tables`, `rm_calculator`, `data_validation`
+
+"""
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,10 +39,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from st_aggrid import AgGrid, GridOptionsBuilder
 
-from utils.datawrangling import order_and_concat_reps, rep_concatenate, filter_by_routine
+from streamlit_dashboard.services.datawrangling import order_and_concat_reps, rep_concatenate, filter_by_routine
 from utils.data_loader import load_and_prepare_data, load_data, load_dim_data
-from utils.rm_calculator import run_1rm_calculator
-from utils.etl_oltp_to_olap import create_exercise_dimension_table
+from streamlit_dashboard.services.rm_calculator import run_1rm_calculator
+from streamlit_dashboard.services.etl_oltp_to_olap import create_exercise_dimension_table
 from database.gsheet_connnector import read_and_clean_sheet, load_data_into_gsheet, get_gsheet_credentials
 from database.data_validation import validate_current_routine
 from utils.tables import reformat_historical_routine_for_display, editable_dataframe
@@ -19,6 +50,20 @@ from utils.tables import reformat_historical_routine_for_display, editable_dataf
 st.set_page_config(page_title="Entrena", layout="wide")
 
 def main():
+    """
+    Main function to render the Current Routine page.
+
+    This function handles the following tasks:
+    - Loads user-specific routine data from Google Sheets and the database.
+    - Displays historical data for the selected routine.
+    - Provides an interface for editing and adding exercises to the current routine.
+    - Validates and saves the entered routine data.
+    - Includes a one-rep max (1RM) calculator for estimating maximum lift weights.
+
+    Returns:
+        None
+    """
+
     # Get user ID from session state if authenticated
     user_id = st.session_state.get("user_id", None)
     # Cargar variables de entorno

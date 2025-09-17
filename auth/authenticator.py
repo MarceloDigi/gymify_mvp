@@ -1,3 +1,31 @@
+"""
+Authenticator Module
+
+This module handles user authentication and management for the Streamlit dashboard. It provides functions for user login, signup, and session management, as well as database interactions for storing and retrieving user credentials.
+
+Modules:
+- `get_user_credentials`: Fetches user credentials from the database.
+- `setup_authenticator`: Configures the Streamlit Authenticator with user credentials.
+- `create_user`: Adds a new user to the database.
+- `login_page`: Displays the login page and handles authentication.
+- `show_signup_option`: Displays the signup option for new users.
+- `signup_page`: Displays the signup page and handles user creation.
+- `logout_button`: Displays the logout button.
+- `check_authentication`: Checks user authentication status and manages login/signup flow.
+- `init_auth_tables`: Initializes authentication tables and creates a default admin user if none exists.
+
+Dependencies:
+- `streamlit`
+- `streamlit_authenticator`
+- `sqlite3`
+- `pandas`
+- `hashlib`
+- `os`
+- `pathlib`
+- `yaml`
+
+"""
+
 import streamlit as st
 import streamlit_authenticator as stauth
 import sqlite3
@@ -17,7 +45,15 @@ from database.db_connector import get_db_connection, execute_query, insert_data
 _user_ids = {}
 
 def get_user_credentials():
-    """Get user credentials from the database"""
+    """
+    Fetch user credentials from the database.
+
+    Queries the database for user information, including username, name, email, and hashed password.
+    Constructs a credentials dictionary for authentication and a mapping of usernames to user IDs.
+
+    Returns:
+        tuple: A dictionary of user credentials and a mapping of usernames to user IDs.
+    """
     conn = get_db_connection()
     users = execute_query("SELECT id_user, username, name, email, password FROM users")
 
@@ -39,7 +75,15 @@ def get_user_credentials():
     return credentials, user_ids
 
 def setup_authenticator():
-    """Set up the authenticator with credentials from the database"""
+    """
+    Configure the Streamlit Authenticator with user credentials.
+
+    Retrieves user credentials from the database and initializes the authenticator with a cookie name,
+    secret key, and expiration settings.
+
+    Returns:
+        stauth.Authenticate: An instance of the Streamlit Authenticator.
+    """
     # Get credentials from database
     credentials, user_ids = get_user_credentials()
 
@@ -61,7 +105,20 @@ def setup_authenticator():
     return authenticator
 
 def create_user(username, name, email, password):
-    """Create a new user in the database"""
+    """
+    Create a new user in the database.
+
+    Hashes the user's password and inserts the user information into the database.
+
+    Args:
+        username (str): The username of the new user.
+        name (str): The full name of the new user.
+        email (str): The email address of the new user.
+        password (str): The plaintext password of the new user.
+
+    Returns:
+        tuple: A boolean indicating success and either the user ID or an error message.
+    """
     # Hash the password - different versions of streamlit-authenticator have different APIs
     try:
         # For newer versions (0.2.0+)
@@ -86,7 +143,15 @@ def create_user(username, name, email, password):
         return False, str(e)
 
 def login_page():
-    """Display login page and handle authentication"""
+    """
+    Display the login page and handle user authentication.
+
+    Shows a login form and processes authentication using the Streamlit Authenticator.
+    Updates the session state with authentication status and user details.
+
+    Returns:
+        tuple: Authentication status, username, name, and the authenticator instance.
+    """
     st.title("🔐 Login")
 
     # Initialize session state for authentication
@@ -125,7 +190,11 @@ def login_page():
     return authentication_status, username, name, authenticator
 
 def show_signup_option():
-    """Show signup option for new users"""
+    """
+    Display the signup option for new users.
+
+    Provides a button to navigate to the signup page if the user does not have an account.
+    """
     st.markdown("---")
     st.markdown("Don't have an account?")
 
@@ -133,7 +202,12 @@ def show_signup_option():
         st.session_state["show_signup"] = True
 
 def signup_page():
-    """Display signup page and handle user creation"""
+    """
+    Display the signup page and handle user creation.
+
+    Collects user details through a form, validates the input, and creates a new user in the database.
+    Provides feedback on the success or failure of the signup process.
+    """
     st.title("📝 Sign Up")
 
     with st.form("signup_form"):
@@ -162,11 +236,24 @@ def signup_page():
         st.session_state["show_signup"] = False
 
 def logout_button(authenticator):
-    """Display logout button"""
+    """
+    Display the logout button.
+
+    Args:
+        authenticator (stauth.Authenticate): The authenticator instance to handle logout.
+    """
     authenticator.logout("Logout", "sidebar")
 
 def check_authentication():
-    """Check if user is authenticated and show login/signup pages if not"""
+    """
+    Check user authentication status and manage login/signup flow.
+
+    Verifies if the user is authenticated. If not, displays the login or signup page.
+    Updates session state with user details upon successful authentication.
+
+    Returns:
+        tuple: Authentication status, username, name, and the authenticator instance.
+    """
     # Initialize session state
     if "authentication_status" not in st.session_state:
         st.session_state["authentication_status"] = None
@@ -197,7 +284,12 @@ def check_authentication():
     return True, st.session_state["username"], st.session_state["name"], setup_authenticator()
 
 def init_auth_tables():
-    """Initialize authentication tables and create admin user if none exists"""
+    """
+    Initialize authentication tables and create a default admin user if none exists.
+
+    Checks if the users table exists and creates a default admin user if the table is empty.
+    Logs the success or failure of the admin user creation process.
+    """
     try:
         conn = get_db_connection()
 

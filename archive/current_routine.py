@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from utils.datawrangling import preprocess_routine_history, rep_concatenate, filter_by_routine
+from streamlit_dashboard.services.datawrangling import preprocess_routine_history, rep_concatenate, filter_by_routine
 from utils.data_loader import load_and_prepare_data, load_data, load_dim_data
-from utils.rm_calculator import calculate_1rm
+from streamlit_dashboard.services.rm_calculator import calculate_1rm
 from st_aggrid import AgGrid, GridOptionsBuilder
 
 st.set_page_config(page_title="Entrena", layout="wide")

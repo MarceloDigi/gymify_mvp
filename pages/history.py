@@ -1,7 +1,31 @@
+"""
+History Page
+
+This script generates the "History" page for the Streamlit dashboard. It allows users to view historical training data by routine or by exercise.
+
+Features:
+- **Data Loading**: Fetches user-specific training data from the database.
+- **Routine History**: Displays historical data for selected routines.
+- **Exercise History**: Displays historical data for selected exercises.
+
+Modules:
+- `load_data`: Loads training data for the authenticated user.
+- `filter_by_routine`: Filters data based on the selected routine.
+- `order_historial`: Orders historical data for display.
+- `rep_concatenate`: Formats repetition data for display.
+
+Dependencies:
+- `streamlit`
+- `pandas`
+- Utility modules: `data_loader`, `datawrangling`
+- Database module: `db_connector`
+
+"""
+
 import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data
-from utils.datawrangling import filter_by_routine, order_historial, rep_concatenate
+from streamlit_dashboard.services.datawrangling import filter_by_routine, order_historial, rep_concatenate
 import database.db_connector as db_connector
 
 st.set_page_config(page_title="Histórico de Rutinas", layout="wide")
@@ -79,3 +103,5 @@ with tab2:
             st.dataframe(df_date[columns_to_show].set_index('Ejercicio'))
     else:
         st.info("No hay registros para este ejercicio.")
+
+# No main function in this script; the logic is executed directly at the module level.

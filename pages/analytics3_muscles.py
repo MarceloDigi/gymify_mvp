@@ -1,3 +1,29 @@
+"""
+Muscle Analysis Page
+
+This script generates the "Muscle Analysis" page for the Streamlit dashboard. It provides users with insights into their muscle-specific training metrics, including workload, effective sets, and direct sets.
+
+Features:
+- **Data Loading**: Fetches user-specific muscle training data from the database.
+- **Date Filtering**: Allows users to select a date range for analysis.
+- **KPI Calculation**: Computes metrics such as workload, effective sets, and direct sets.
+- **Charts and Tables**: Displays visualizations and summary tables for muscle-level metrics.
+
+Modules:
+- `load_data`: Loads training data for the authenticated user.
+- `filter_by_date`: Filters data based on the selected date range.
+- `calculate_summary_table`: Aggregates data for summary tables.
+- `plot_muscle_analysis`: Generates visualizations for muscle-specific metrics.
+- `display_summary_table`: Renders summary tables for muscle-level metrics.
+
+Dependencies:
+- `streamlit`
+- `pandas`
+- `datetime`
+- Utility modules: `data_loader`, `tables`, `charts`, `dashboard_utils`
+
+"""
+
 import streamlit as st
 import pandas as pd
 from datetime import timedelta, datetime
@@ -12,6 +38,19 @@ st.set_page_config(page_title="Análisis Muscular", layout="wide")
 st.title("Análisis Muscular")
 
 def main():
+    """
+    Main function to render the Muscle Analysis page.
+
+    This function handles the following tasks:
+    - Retrieves user-specific muscle training data from the database.
+    - Applies date range filters to the data.
+    - Computes metrics such as workload, effective sets, and direct sets.
+    - Generates and displays charts and summary tables for muscle-level metrics.
+
+    Returns:
+        None
+    """
+
     # Get user ID from session state if authenticated
     user_id = st.session_state.get("user_id", None)
 
