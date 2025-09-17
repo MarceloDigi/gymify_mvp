@@ -3,6 +3,7 @@ import numpy as np
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import sys
+import os
 import utils.datawrangling as dw
 
 def read_gsheet(spreadsheet, worksheet_name: str):
@@ -30,3 +31,32 @@ def read_and_clean_sheet(spreadsheet_fitness_personal, worksheet_name: str, date
 
     return df
 
+def load_data_into_gsheet(spreadsheet, worksheet_name: str, df: pd.DataFrame):
+    """
+    Load a DataFrame into a Google Sheet.
+    """
+    # Convert DataFrame to list of lists
+    data = [df.columns.tolist()] + df.values.tolist()
+
+    # Update the worksheet with the new data
+    spreadsheet.values_update(
+        worksheet_name,
+        params={'valueInputOption': 'USER_ENTERED'},
+        body={'values': data}
+    )
+
+def get_gsheet_credentials():
+    """
+    Get Google Sheets credentials.
+    """
+    CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH")
+
+    scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive"
+    ]
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_PATH, scope)
+    client = gspread.authorize(creds)
+
+    return client
