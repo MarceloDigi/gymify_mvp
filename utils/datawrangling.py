@@ -97,7 +97,7 @@ def rep_concatenate(df,
         st.error(f"Error concatenating rep range: {e}")
     return df
 
-def preprocess_routine_history(df: pd.DataFrame) -> pd.DataFrame:
+def order_and_concat_reps(df: pd.DataFrame) -> pd.DataFrame:
     df = order_historial(df)
     df = rep_concatenate(df)
     return df
