@@ -27,7 +27,7 @@ def main():
         min_date, max_date = get_date_filters(df)
         # Default range: last 6 weeks
         today = datetime.today().date()
-        default_start = today - timedelta(weeks=6)
+        default_start = today - timedelta(weeks=36)
         default_end = today
 
         # Convert Timestamp to .date() with NaT handling
@@ -72,7 +72,7 @@ def main():
     df_muscles_prev = filter_by_date(df_muscles, prev_start, prev_end)
 
     # Agregaciones para ejercicios
-    groupers = [pd.Grouper(key='fecha', freq=granularity), 'exercise_no_tempo']
+    groupers = [pd.Grouper(key='fecha', freq=granularity), 'exercise']
     metrics_compound = {'workload': 'sum', '1rm': 'max', 'effective_set': 'sum'}
     metrics_isolated = {'workload': 'sum', 'weight': 'max', 'effective_set': 'sum'}
 
@@ -118,8 +118,8 @@ def main():
     kpi_now_isolate = compute_kpis(isolate_agg, agg_map=agg_map_isolate)
     kpi_prev_isolate = compute_kpis(isolate_agg_prev, agg_map=agg_map_isolate)
 
-    compound_exercises = df_filtered[df_filtered["progress_tracker"] == "Compound"]["exercise_no_tempo"].unique()
-    isolate_exercises = df_filtered[df_filtered["progress_tracker"] == "Isolate"]["exercise_no_tempo"].unique()
+    compound_exercises = df_filtered[df_filtered["progress_tracker"] == "Compound"]["exercise"].unique()
+    isolate_exercises = df_filtered[df_filtered["progress_tracker"] == "Isolate"]["exercise"].unique()
 
     compound_df_filtered = df_filtered[df_filtered["progress_tracker"] == "Compound"]
     compound_df_prev = df_prev[df_prev["progress_tracker"] == "Compound"]
@@ -134,7 +134,7 @@ def main():
         df_now=compound_df_filtered,
         df_prev=compound_df_prev,
         group_col="rir_range",
-        metrics={"Series Totales": ("id_serie", "nunique")},
+        metrics={"Series Totales": ("id_set", "nunique")},
     )
     table_1_cols = [col for col in table_1.columns if "prev" not in col]
     # Tabla 2
@@ -146,7 +146,7 @@ def main():
     table_2 = calculate_summary_table(
         df_now=compound_df_filtered,
         df_prev=compound_df_prev,
-        group_col="exercise_no_tempo",
+        group_col="exercise",
         metrics=metrics_2,
     )
     table_2_cols = [col for col in table_2.columns if "prev" not in col]
@@ -159,7 +159,7 @@ def main():
     table_3 = calculate_summary_table(
         df_now=isolate_df_filtered,
         df_prev=isolate_df_prev,
-        group_col="exercise_no_tempo",
+        group_col="exercise",
         metrics=metrics_3
     )
     table_3_cols = [col for col in table_3.columns if "prev" not in col]
@@ -195,7 +195,7 @@ def main():
     )
     display_summary_table(
         table_2[table_2_cols],
-        group_col="exercise_no_tempo",
+        group_col="exercise",
         title="💪 Detalle por ejercicio"
     )
 
@@ -203,9 +203,9 @@ def main():
     st.title("📊 Análisis Detallado - Compound")
     for exercise in compound_exercises:
         st.subheader(f"🔍 {exercise}")
-        exercise_df = df_filtered[df_filtered["exercise_no_tempo"] == exercise]
-        exercise_muscle_filtered = df_muscles_filtered[df_muscles_filtered["exercise_no_tempo"] == exercise]
-        exercise_muscle_prev = df_muscles_prev[df_muscles_prev["exercise_no_tempo"] == exercise]
+        exercise_df = df_filtered[df_filtered["exercise"] == exercise]
+        exercise_muscle_filtered = df_muscles_filtered[df_muscles_filtered["exercise"] == exercise]
+        exercise_muscle_prev = df_muscles_prev[df_muscles_prev["exercise"] == exercise]
 
         freq_grouped = exercise_df\
             .groupby(pd.Grouper(key='fecha', freq=granularity)).agg({
@@ -226,7 +226,7 @@ def main():
             df_now=exercise_muscle_filtered,
             df_prev=exercise_muscle_prev,
             group_col="rir_range",
-            metrics={"Series Totales": ("series_counter", "sum")}
+            metrics={"Series Totales": ("sets_by_muscle", "sum")}
         )
         exercise_by_rir_cols = [
             col for col in exercise_by_rir.columns if "prev" not in col
@@ -253,19 +253,19 @@ def main():
     )
     display_summary_table(
         table_3[table_3_cols],
-        group_col="exercise_no_tempo",
+        group_col="exercise",
         title="💪 Detalle por ejercicio"
     )
 
     for exercise in isolate_exercises:
         st.subheader(f"🔍 {exercise}")
-        exercise_df = df_filtered[df_filtered["exercise_no_tempo"] == exercise]
+        exercise_df = df_filtered[df_filtered["exercise"] == exercise]
 
         exercise_by_rir = calculate_summary_table(
             df_now=exercise_muscle_filtered,
             df_prev=exercise_muscle_prev,
             group_col="rir_range",
-            metrics={"Series Totales": ("series_counter", "sum")}
+            metrics={"Series Totales": ("sets_by_muscle", "sum")}
         )
         exercise_by_rir_cols = [
             col for col in exercise_by_rir.columns if "prev" not in col
