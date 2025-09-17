@@ -30,7 +30,7 @@ def main():
         min_date, max_date = get_date_filters(df)
         # Default range: last 6 weeks
         today = datetime.today().date()
-        default_start = today - timedelta(weeks=6)
+        default_start = today - timedelta(weeks=36)
         default_end = today
 
         # Convert Timestamp to .date() with NaT handling
@@ -77,22 +77,22 @@ def main():
     labels_kpis = [labels[4]] + [labels[2]] + [labels[5]]
 
     metrics_1 = {
-        "Series Totales": ("id_serie", "nunique"),
+        "Series Totales": ("id_set", "nunique"),
         "Series Efectivas": ("effective_set", "sum"),
         "Workload": ("workload", "sum"),
         "Max. 1RM" : ("1rm", "max")
     }
     metrics_2 = {
         "Días Entrenados": ("fecha", "nunique"),
-        "Series Totales": ("id_serie", "nunique"),
+        "Series Totales": ("id_set", "nunique"),
         "Series Efectivas": ("effective_set", "sum"),
         "Workload": ("workload", "sum")
     }
     metrics_3 = {
-        "Series Totales": ("series_counter", "sum"),
-        "Series Directas": ("series_principal","sum"),
-        "Series Efectivas": ("effective_set_counter", "sum"),
-        "Workload": ("workload_real", "sum")
+        "Series Totales": ("sets_by_muscle", "sum"),
+        "Series Directas": ("is_set_principal_for_muscle","sum"),
+        "Series Efectivas": ("effective_sets_by_muscle", "sum"),
+        "Workload": ("workload_by_muscle", "sum")
     }
 
     kpis_curr = compute_kpis(df_filtered, agg_map=map_metrics)
@@ -113,13 +113,13 @@ def main():
     df_muscle_processed = calculate_summary_table(
                                         df_now=df_muscles_filtered,
                                         df_prev=df_muscles_prev,
-                                        group_col="id_muscle",
+                                        group_col="muscle_name",
                                         metrics=metrics_3,
     )
     grouped = df_filtered\
         .groupby(pd.Grouper(key='fecha', freq=granularity))\
         .agg(
-             Total_Series= ('id_serie','nunique'),
+             Total_Series= ('id_set','nunique'),
              Series_Efectivas=('effective_set','sum'),
              Tonelaje= ('workload','sum')
         ).reset_index()
@@ -174,7 +174,7 @@ def main():
     )
     display_summary_table(
         df_muscle_processed[col_metrics_3],
-        group_col="id_muscle",
+        group_col="muscle_name",
         title = "💪 Detalle por músculo"
     )
 
