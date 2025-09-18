@@ -39,10 +39,10 @@ from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 from st_aggrid import AgGrid, GridOptionsBuilder
 
-from streamlit_dashboard.services.datawrangling import order_and_concat_reps, rep_concatenate, filter_by_routine
+from services.datawrangling import order_and_concat_reps, rep_concatenate, filter_by_routine
 from utils.data_loader import load_and_prepare_data, load_data, load_dim_data
-from streamlit_dashboard.services.rm_calculator import run_1rm_calculator
-from streamlit_dashboard.services.etl_oltp_to_olap import create_exercise_dimension_table
+from services.rm_calculator import run_1rm_calculator
+from services.etl_oltp_to_olap import create_exercise_dimension_table
 from database.gsheet_connnector import read_and_clean_sheet, load_data_into_gsheet, get_gsheet_credentials
 from database.data_validation import validate_current_routine
 from utils.tables import reformat_historical_routine_for_display, editable_dataframe

@@ -4,7 +4,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import sys
 import os
-import streamlit_dashboard.services.datawrangling as dw
+import services.datawrangling as dw
 
 def read_gsheet(spreadsheet, worksheet_name: str):
     sheet = spreadsheet.worksheet(worksheet_name)
