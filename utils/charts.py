@@ -136,7 +136,10 @@ def plot_line_vs_bar(df,
         height=400
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config={
+    "staticPlot": True,
+    "displayModeBar": False
+    })
 
 def display_exercise_tags(exercises):
     st.subheader("🏷️ Ejercicios incluidos en el análisis")
@@ -258,4 +261,7 @@ def plot_muscle_analysis(data,
         fig.update_xaxes(visible=False)
 
     # Display the chart in Streamlit
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config={
+    "staticPlot": True,
+    "displayModeBar": False
+    })
