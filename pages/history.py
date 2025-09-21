@@ -25,7 +25,7 @@ Dependencies:
 import streamlit as st
 import pandas as pd
 from utils.data_loader import load_data
-from streamlit_dashboard.services.datawrangling import filter_by_routine, order_historial, rep_concatenate
+from services.datawrangling import filter_by_routine, order_historial, rep_concatenate
 import database.db_connector as db_connector
 
 st.set_page_config(page_title="Histórico de Rutinas", layout="wide")
