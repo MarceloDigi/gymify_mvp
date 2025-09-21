@@ -66,6 +66,8 @@ def validate_current_routine(df):
     numeric_cols = ['Reps', 'Peso']
     hypertrophy_techniques = ['Myo-reps', 'Parciales', 'Dropset', 'Rest-pause', 'Clúster']
 
+    # Quitar sets vacíos
+    df = df[df[numeric_cols].sum(axis=1) != 0]
     # Validación de inputs
     st.subheader("Validación de la rutina")
 
@@ -96,6 +98,7 @@ def validate_current_routine(df):
         st.session_state["confirmed_rango"] = True
     # === Validación RIR ===
     valid_rirs = {"f","F", "0", "1", "2", "3", "4", "5", 0, 1, 2, 3, 4, 5}
+    df['RIR'] = df['RIR'].apply(lambda x: str(int(x)) if x != "F" or "f" else x)
     invalid_rir = df[(df[numeric_cols].sum(axis=1) != 0) & (~df["RIR"].astype(str).isin(valid_rirs))]
     if not invalid_rir.empty:
         st.warning("Hay valores no válidos en RIR. Solo se permite: F, 0 a 5.")
@@ -162,8 +165,6 @@ def validate_current_routine(df):
     df['Rango'] = df['Rango'].fillna('')
     # Redondear a múltiplos de 0.25 los pesos usados
     df['Peso'] = df['Peso'].apply(lambda x: round(x * 4) / 4 if x != 0 else 0)
-    # Quitar sets vacíos
-    df = df[df[numeric_cols].sum(axis=1) != 0]
 
     return df
 
