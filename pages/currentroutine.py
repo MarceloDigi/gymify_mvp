@@ -192,7 +192,6 @@ def main():
     if st.session_state["trigger_guardado"]:
         combined_df = pd.concat(all_edited_dfs, ignore_index=True)
         if not combined_df.empty:
-            combined_df['RIR'] = combined_df['RIR'].apply(lambda x: str(int(x)) if x != "F" else x)
             validated_df = validate_current_routine(combined_df)
             if validated_df is None:
                 st.warning("Validación incompleta. Por favor revisa las advertencias.")
@@ -200,11 +199,7 @@ def main():
             try:
                 st.success("Datos guardados correctamente.")
                 st.dataframe(validated_df)
-                load_data_into_gsheet(
-                    spreadsheet_fitness_personal,
-                    df=validated_df,
-                    worksheet_name='Test'
-                )
+                validated_df.to_csv(r"C:\Users\marce\OneDrive\Escritorio\marcelo_cruz\Python\test\validated_df.csv", index=False)
                 st.session_state["trigger_guardado"] = False  # reset
             except Exception as e:
                 st.error(f"Error guardando datos: {e}")
