@@ -45,11 +45,15 @@ def load_data_into_gsheet(spreadsheet, worksheet_name: str, df: pd.DataFrame):
         body={'values': data}
     )
 
-def get_gsheet_credentials():
+def get_gsheet_credentials(local=True):
     """
     Get Google Sheets credentials.
     """
-    CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH")
+    if local:
+        CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH")
+    else:
+        # Directamente usa el archivo en el proyecto
+        CREDENTIALS_PATH = r"C:\Users\marcelo.cruz\Desktop\Marcelo\Personal\fitnessapp-427914-c9566de4337b.json"
 
     scope = [
     "https://spreadsheets.google.com/feeds",

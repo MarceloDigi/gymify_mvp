@@ -63,15 +63,20 @@ def main():
     Returns:
         None
     """
-
+    local = False
     # Get user ID from session state if authenticated
     user_id = st.session_state.get("user_id", None)
     # Cargar variables de entorno
     load_dotenv()
 
     #  Conectarme a Google Sheets
-    client = get_gsheet_credentials()
-    fitness_personal_key = os.getenv("GOOGLE_SHEET_KEY_FITNESS_PERSONAL")
+    client = get_gsheet_credentials(local=local)
+
+    if local:
+        fitness_personal_key = os.getenv("GOOGLE_SHEET_KEY_FITNESS_PERSONAL")
+    else:
+        fitness_personal_key = "10kCGyR2bk2beH0pnkfEsad8dgEzMaP6RK9u-uLkg1Lw"
+        
     spreadsheet_fitness_personal = client.open_by_key(fitness_personal_key)
 
     # Cargar datos de la base de datos
