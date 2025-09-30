@@ -63,19 +63,15 @@ def main():
     Returns:
         None
     """
-    local = False
     # Get user ID from session state if authenticated
     user_id = st.session_state.get("user_id", None)
     # Cargar variables de entorno
     load_dotenv()
 
     #  Conectarme a Google Sheets
-    client = get_gsheet_credentials(local=local)
+    client = get_gsheet_credentials(local=False)
 
-    if local:
-        fitness_personal_key = os.getenv("GOOGLE_SHEET_KEY_FITNESS_PERSONAL")
-    else:
-        fitness_personal_key = "10kCGyR2bk2beH0pnkfEsad8dgEzMaP6RK9u-uLkg1Lw"
+    fitness_personal_key = os.getenv("GOOGLE_SHEET_KEY_FITNESS_PERSONAL")
         
     spreadsheet_fitness_personal = client.open_by_key(fitness_personal_key)
 
@@ -204,7 +200,8 @@ def main():
             try:
                 st.success("Datos guardados correctamente.")
                 st.dataframe(validated_df)
-                validated_df.to_csv(r"C:\Users\marce\OneDrive\Escritorio\marcelo_cruz\Python\test\validated_df.csv", index=False)
+                validated_df['routine'] = selected_routine
+                validated_df.to_csv(r"test_validated_df.csv", index=False)
                 st.session_state["trigger_guardado"] = False  # reset
             except Exception as e:
                 st.error(f"Error guardando datos: {e}")
