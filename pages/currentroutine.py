@@ -69,7 +69,7 @@ def main():
     load_dotenv()
 
     #  Conectarme a Google Sheets
-    client = get_gsheet_credentials(local=False)
+    client = get_gsheet_credentials()
 
     fitness_personal_key = os.getenv("GOOGLE_SHEET_KEY_FITNESS_PERSONAL")
         
