@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
 
+from database import db_connector as connector
+from utils import data_loader as loader
+
 def create_exercise_dimension_table(sql_exercise_muscle_rol,
                                     sql_exercises,
                                     sql_pattern,
@@ -38,17 +41,17 @@ def add_exercise(exercise_name: str = None,
                  sql_exercise_muscle_rol=None
                  ):
     
-    engine = create_engine("mysql+pymysql://admin:Macs.991014.@localhost/fitnessdb")
+    dict_sql = loader.load_dim_data()
     
-    sql_exercises = pd.read_sql("SELECT * FROM exercises", con=engine)
-    sql_pattern = pd.read_sql("SELECT * FROM movement_pattern", con=engine)
-    sql_roles = pd.read_sql("SELECT * FROM rol_names", con=engine)
-    sql_pattern_muscle_rol = pd.read_sql("SELECT * FROM pattern_muscle_rol", con=engine)
-    sql_equipments = pd.read_sql("SELECT * FROM equipments", con=engine)
-    sql_muscles = pd.read_sql("SELECT * FROM muscles", con=engine)
+    sql_exercises = dict_sql['exercises']
+    sql_pattern = dict_sql['movement_pattern']
+    sql_roles = dict_sql['rol_names']
+    sql_pattern_muscle_rol = dict_sql['pattern_muscle_rol']
+    sql_equipments = dict_sql['equipments']
+    sql_muscles = dict_sql['muscles']
+    sql_exercise_muscle_rol = dict_sql['exercise_muscle_roles']
     pattern_olap = create_pattern_muscle_dim_table(sql_pattern_muscle_rol, sql_pattern, sql_muscles, sql_roles)
-    sql_exercise_muscle_rol = pd.read_sql("SELECT * FROM exercise_muscle_roles", con=engine)
-
+    
     extract_cols = cols = ['id_exercise','id_pattern']
 
     if exercise_name is None:
