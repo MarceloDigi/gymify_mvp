@@ -11,17 +11,17 @@ load_dotenv(dotenv_path=env_path)
 
 # ///////////////////// MySQL Database Connection ////////////////////
 
-DB_USER = os.getenv("MYSQLUSER", "root")
-DB_PASSWORD = os.getenv("MYSQLPASSWORD", "tu_password")
-DB_HOST = os.getenv("MYSQLHOST", "interchange.proxy.rlwy.net")
-DB_PORT = os.getenv("MYSQLPORT", "44580")
-DB_NAME = os.getenv("MYSQLDATABASE", "railway")
+DB_USER = os.getenv("MYSQLUSER")
+DB_PASSWORD = os.getenv("MYSQLPASSWORD")
+DB_HOST = os.getenv("MYSQLHOST")
+DB_PORT = os.getenv("MYSQLPORT")
+DB_NAME = os.getenv("MYSQLDATABASE")
 
 def get_db_connection():
     connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     if not connection_string:
         raise ValueError("❌ MY_SQL_CONNECTION no está definido en el entorno.")
-    print("🔍 Conexión detectada:", connection_string)
+    print("🔍 Conexión detectada")
     engine = create_engine(connection_string)
     return engine.connect()
 
