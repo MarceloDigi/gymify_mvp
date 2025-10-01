@@ -1,24 +1,40 @@
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
+import sys
 
-from database import db_connector as connector
-from utils import data_loader as loader
+sys.path.append(r'..\database')
+sys.path.append(r'..\utils')
 
-def create_exercise_dimension_table(sql_exercise_muscle_rol,
-                                    sql_exercises,
-                                    sql_pattern,
-                                    sql_muscles,
-                                    sql_roles
-                                    ):
-    exercise_olap = sql_exercise_muscle_rol.merge(sql_exercises[['id_exercise','exercise_name','english_name']], how='left', on='id_exercise')
-    exercise_olap = exercise_olap.merge(sql_pattern, how='left', on='id_pattern')
-    exercise_olap = exercise_olap.merge(sql_muscles[['id_muscle','muscle_name']], how='left', on='id_muscle')
-    exercise_olap = exercise_olap.merge(sql_roles[['id_rol','rol']], how='left', on='id_rol')
+import db_connector as connector
+import data_loader as loader
 
-    exercise_olap.drop(['id_exercise','id_pattern','id_muscle','id_rol'], axis=1, inplace=True)
+def create_exercise_dimension_table(conn=None) -> pd.DataFrame:
+    query = """
+    SELECT 
+        e.exercise_name,
+        e.english_name,
+        p.movement_pattern,
+        m.muscle_name,
+        r.rol,
+        r.rol_multiplier
+    FROM exercise_muscle_roles emr
+    LEFT JOIN exercises e 
+        ON emr.id_exercise = e.id_exercise
+    LEFT JOIN movement_pattern p 
+        ON emr.id_pattern = p.id_pattern
+    LEFT JOIN muscles m 
+        ON emr.id_muscle = m.id_muscle
+    LEFT JOIN rol_names r 
+        ON emr.id_rol = r.id_rol;
+    """
+    try:
+        df = pd.read_sql(query, con=conn)
+    except Exception as e:
+        print(f"Error executing query: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame on error
 
-    return exercise_olap
+    return df
 
 def create_pattern_muscle_dim_table(sql_pattern_muscle_rol, sql_pattern, sql_muscles, sql_roles):
     pattern_olap = sql_pattern_muscle_rol.merge(sql_pattern, how='left', on='id_pattern')
