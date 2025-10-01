@@ -49,10 +49,15 @@ def get_gsheet_credentials():
     """
     Get Google Sheets credentials.
     """
-    CREDENTIALS_PATH = (
-    os.getenv("GOOGLE_CREDENTIALS_PATH")
-    or os.getenv("GOOGLE_CREDENTIALS_PATH_OTHER")
-    )
+    path1 = os.getenv("GOOGLE_CREDENTIALS_PATH")
+    path2 = os.getenv("GOOGLE_CREDENTIALS_PATH_OTHER")
+
+    if path1 and os.path.exists(path1):
+        CREDENTIALS_PATH = path1
+    elif path2 and os.path.exists(path2):
+        CREDENTIALS_PATH = path2
+    else:
+        raise FileNotFoundError("No se encontraron credenciales válidas.")
 
     scope = [
     "https://spreadsheets.google.com/feeds",
