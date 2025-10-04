@@ -1,5 +1,4 @@
 import streamlit as st
-from math import ceil
 
 def simple_locale_format(val, fmt="{:,.0f}"):
     # First, format the value using the standard formatter:
@@ -98,3 +97,12 @@ def display_kpis(curr: dict, prev: dict, labels: list, mode_dict: dict = None):
                 delta = "-"
         
         col.metric(label, value, delta, border=True)
+
+def compute_difference_between_kpis(df, kpi_1, kpi_2, drop=False):
+    """
+    Computes the difference between two KPIs for stacked bar chart.
+    """
+    df[f'{kpi_1}_vs_{kpi_2}'] = df[kpi_2] - df[kpi_1]
+    if drop:
+        df.drop(columns=[kpi_2], inplace=True)
+    return df

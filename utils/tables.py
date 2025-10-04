@@ -8,16 +8,6 @@ def simple_locale_format(val, fmt="{:,.0f}"):
     # Then swap commas and periods using a temporary placeholder.
     return formatted.replace(",", "TMP").replace(".", ",").replace("TMP", ".")
 
-def reorder_columns(cols: list):
-    base_cols = [col for col in cols if not col.startswith("Δ_")]
-    reordered = []
-    for col in base_cols:
-        reordered.append(col)
-        delta = f"Δ_{col}"
-        if delta in cols:
-            reordered.append(delta)
-    return reordered
-
 def highlight_deltas(val):
     if pd.isna(val): return ''
     color = 'lightgreen' if val > 0 else 'salmon' if val < 0 else 'lightgray'
@@ -120,15 +110,6 @@ def calculate_summary_table(df_now, group_col, metrics, df_prev=None, compare_pr
         else:
             df[col] = df[col].round(0).astype(int)
 
-    return df
-
-def compute_difference_between_kpis(df, kpi_1, kpi_2, drop=False):
-    """
-    Computes the difference between two KPIs for stacked bar chart.
-    """
-    df[f'{kpi_1}_vs_{kpi_2}'] = df[kpi_2] - df[kpi_1]
-    if drop:
-        df.drop(columns=[kpi_2], inplace=True)
     return df
 
 def display_summary_table(df, group_col, title, custom_formats: dict = None):
