@@ -31,23 +31,24 @@ Dependencies:
 
 import streamlit as st
 import pandas as pd
-import numpy as np
-import os
-from datetime import datetime
 from dotenv import load_dotenv
-from oauth2client.service_account import ServiceAccountCredentials
-import gspread
-from st_aggrid import AgGrid, GridOptionsBuilder
 
-from services.datawrangling import order_and_concat_reps, rep_concatenate, filter_by_routine
-from utils.data_loader import load_and_prepare_data, load_data, load_dim_data
-from services.rm_calculator import run_1rm_calculator
-from services.etl_oltp_to_olap import create_exercise_dimension_table
-from database.gsheet_connnector import read_and_clean_sheet, load_data_into_gsheet, get_gsheet_credentials
-from database.data_validation import validate_current_routine
-from utils.tables import reformat_historical_routine_for_display, editable_dataframe
+import services.datawrangling as dw
+import utils.filters_and_sort as fs
+import services.etl_input_to_dwh as etl_input
+import services.rm_calculator as rm_calculator
+import database.data_validation as dv
+import utils.tables as tables
 
 st.set_page_config(page_title="Entrena", layout="wide")
+
+# Cargar datos
+df_track_record = st.session_state.get("df_track_record")
+df_templates = st.session_state.get("df_templates")
+
+if df_track_record is None or df_templates is None:
+    st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
+    st.stop()
 
 def main():
     """
@@ -68,45 +69,25 @@ def main():
     # Cargar variables de entorno
     load_dotenv()
 
-    #  Conectarme a Google Sheets
-    client = get_gsheet_credentials()
-
-    fitness_personal_key = os.getenv("GOOGLE_SHEET_KEY_FITNESS_PERSONAL")
-        
-    spreadsheet_fitness_personal = client.open_by_key(fitness_personal_key)
-
-    # Cargar datos de la base de datos
-    sql_data = load_dim_data()
-
-    # //////////////////// Load Data //////////////////////
-    try:
-        if "routine_template" not in st.session_state or "df" not in st.session_state:
-            df = read_and_clean_sheet(spreadsheet_fitness_personal, worksheet_name='TrackRecord', date_cols=['fecha'])
-            routine_template = read_and_clean_sheet(spreadsheet_fitness_personal, worksheet_name='Routines')
-            st.session_state["df"] = df
-            st.session_state["routine_template"] = routine_template
-        else:
-            df = st.session_state["df"]
-            routine_template = st.session_state["routine_template"]
-        
-        exercises = sql_data['exercises']
-
-    except Exception as e:
-        st.error(f"Error cargando datos: {e}")
-        st.info("Por favor, importa datos a través del panel de administración en la página de inicio.")
-        return
-
+    # Carga controlada y persistente en sesión
+    df_templates = st.session_state.get("df_templates")
+    df_track_record = st.session_state.get("df_track_record")
+    sql_exercises = st.session_state.get("exercises")
+    
+    if df_templates is None or df_track_record is None or sql_exercises is None:
+        st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
+        st.stop()
     # /////////////////////// Filter ///////////////////////
 
     # Seleccionar la rutina
-    routines = df['routine_name'].unique()
+    routines = df_track_record['routine'].unique()
 
     # /////////////////////// Display //////////////////////
     st.title('🏋🏽‍♂️ Entrenamiento')
 
     # Filter by Routine
     selected_routine = st.selectbox("Selecciona la rutina", routines)
-    df_filtered = filter_by_routine(df, selected_routine, 'routine_name')
+    df_filtered = fs.filter_by_routine(df_track_record, selected_routine, 'routine')
 
     # ///////// Section 1: Histórico
     st.subheader("📅 Historial de la rutina")
@@ -117,21 +98,21 @@ def main():
 
     # Historico de rutinas
     df_filtered_by_date = df_filtered[df_filtered['fecha'].dt.strftime('%Y-%m-%d') == selected_date]
-    df_filtered_by_date = order_and_concat_reps(df_filtered_by_date)
-    df_hist, columns_to_show, height = reformat_historical_routine_for_display(df_filtered_by_date)
+    df_filtered_by_date = dw.rep_concatenate(fs.order_historial(df_filtered_by_date))
+    df_hist, columns_to_show, height = tables.reformat_historical_routine_for_display(df_filtered_by_date)
     st.dataframe(df_hist[columns_to_show].set_index('Ejercicio'), height=height)
 
     # ///////// Section 2: Ingresar Datos
     st.subheader("📥 Ingreso de rutina")
 
     # Plantilla de rutinas
-    routine_template_filtered = filter_by_routine(routine_template, selected_routine, 'routine_name')
-    routine_template_filtered = routine_template_filtered[['exercise', 'repmin', 'repmax']].copy()
-    routine_template_filtered = rep_concatenate(routine_template_filtered, "repmin", "repmax").reset_index(drop=True)
-    exercises_template = routine_template_filtered.exercise.unique()
+    df_templates_filtered = fs.filter_by_routine(df_templates, selected_routine, 'routine_name')
+    df_templates_filtered = df_templates_filtered[['exercise', 'repmin', 'repmax']].copy()
+    df_templates_filtered = dw.rep_concatenate(df_templates_filtered, "repmin", "repmax").reset_index(drop=True)
+    exercises_template = df_templates_filtered.exercise.unique()
 
     # Lista de ejercicios completos
-    capitalized_names = exercises['english_name'].str.capitalize().sort_values().tolist()
+    capitalized_names = sql_exercises['english_name'].str.capitalize().sort_values().tolist()
     capitalized_names.insert(0, '-')
     
     st.info("**Nota: Rellenar RIR con los siguientes valores: F, 0, 1, 2, 3, 4, 5**")
@@ -152,7 +133,7 @@ def main():
             key=f'selectbox_exercise_{i}',
             label_visibility="hidden"
         )
-        edited_df = editable_dataframe(routine_template_filtered, exercise_selection, idx=i)
+        edited_df = tables.editable_dataframe(df_templates_filtered, exercise_selection, idx=i)
         all_edited_dfs.append(edited_df)
 
     # Estado para ejercicios adicionales manuales
@@ -175,7 +156,7 @@ def main():
                 label_visibility="visible"
             )
             st.session_state.extra_blocks[j] = selected_extra
-            extra_df = editable_dataframe(routine_template_filtered, selected_extra, idx=idx)
+            extra_df = tables.editable_dataframe(df_templates_filtered, selected_extra, idx=idx)
             all_edited_dfs.append(extra_df)
 
         with cols[1]:
@@ -183,7 +164,6 @@ def main():
                 st.session_state.extra_blocks.pop(j)
                 st.rerun()
 
-    # Guardar datos y validar
     if "trigger_guardado" not in st.session_state:
         st.session_state["trigger_guardado"] = False
 
@@ -192,29 +172,53 @@ def main():
 
     if st.session_state["trigger_guardado"]:
         combined_df = pd.concat(all_edited_dfs, ignore_index=True)
-        if not combined_df.empty:
-            validated_df = validate_current_routine(combined_df)
-            if validated_df is None:
-                st.warning("Validación incompleta. Por favor revisa las advertencias.")
-                return  # ⚠️ Detenemos sin resetear trigger para permitir confirmar checkboxes
-            try:
-                st.success("Datos guardados correctamente.")
-                st.dataframe(validated_df)
-                validated_df['routine'] = selected_routine
-                validated_df.to_csv(r"test_validated_df.csv", index=False)
-                st.session_state["trigger_guardado"] = False  # reset
-            except Exception as e:
-                st.error(f"Error guardando datos: {e}")
-        else:
+        if combined_df.empty:
             st.warning("No hay datos para guardar.")
             st.session_state["trigger_guardado"] = False
+            st.stop()
 
+        # ---------- VALIDACIÓN ----------
+        try:
+            validated_df = dv.validate_current_routine(combined_df)
+            if validated_df is None:
+                st.warning("Validación incompleta. Por favor revisa las advertencias.")
+                st.stop()
+            st.dataframe(validated_df)
+        except Exception as e:
+            st.error(f"Error durante la validación: {e}")
+            st.session_state["trigger_guardado"] = False
+            st.stop()
+
+        # ---------- ETL / LIMPIEZA ----------
+        try:
+            validated_df["routine"] = selected_routine
+            validated_df, validated_df_muscles = etl_input.complete_cleaning(validated_df)
+        except Exception as e:
+            st.error(f"Error durante la limpieza ETL: {type(e).__name__} - {e}")
+            st.info("Consulta el archivo de logs 'etl_debug_*.log' para más detalles.")
+            st.session_state["trigger_guardado"] = False
+            st.stop()
+
+        # ---------- GUARDADO ----------
+        try:
+            if validated_df is None: 
+                raise ValueError("Track Record es None.")
+            if validated_df_muscles is None:
+                raise ValueError("Track Record Muscles es None.")
+            
+            validated_df.to_csv("test_validated_df.csv", index=False)
+            validated_df_muscles.to_csv("test_validated_df_muscles.csv", index=False)
+            st.success("✅ Datos guardados correctamente.")
+        except Exception as e:
+            st.error(f"Error guardando datos: {e}")
+        finally:
+            st.session_state["trigger_guardado"] = False
 
     # //////////// Section 3: Calcular RMs
     st.markdown("---")
     st.subheader("🧮 Calculadora de RM")
     st.caption("Calcula cuánto peso máximo podrías levantar entre 1 y 10 repeticiones.")
-    run_1rm_calculator()
+    rm_calculator.run_1rm_calculator()
 
 if __name__ == "__main__":
     main()

@@ -25,13 +25,12 @@ Dependencies:
 """
 
 import streamlit as st
-import pandas as pd
-from datetime import timedelta, datetime
-from utils.data_loader import load_data, filter_by_date, get_date_filters
-from utils.kpis import compute_kpis, display_kpis
-from utils.tables import reorder_columns, calculate_summary_table, display_summary_table, compute_difference_between_kpis
-from utils.charts import plot_line_vs_bar, display_exercise_tags, labels, plot_muscle_analysis
-from utils.dashboard_utils import load_common_resources
+
+import utils.kpis as kpis
+import utils.tables as tables
+import utils.charts as charts
+import utils.filters_and_sort as fs
+import utils.styling as styling
 
 st.set_page_config(page_title="Análisis Muscular", layout="wide")
 
@@ -51,57 +50,19 @@ def main():
         None
     """
 
-    # Get user ID from session state if authenticated
-    user_id = st.session_state.get("user_id", None)
+    # Cargar datos
+    df_track_record_by_muscles = st.session_state.get("df_track_record_muscles")
 
-    # Load data from SQLite database
-    df, df_muscles = load_data(user_id=user_id)
+    if df_track_record_by_muscles is None:
+        st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
+        st.stop()
 
-    # Check if data is empty
-    if df.empty:
-        st.warning("No hay datos disponibles en la base de datos.")
-        st.info("Por favor, importa datos a través del panel de administración en la página de inicio.")
-        return
-
-    # ////////////////// Filtros ////////////////////////
-    try:
-        min_date, max_date = get_date_filters(df)
-        # Default range: last 6 weeks
-        today = datetime.today().date()
-        default_start = today - timedelta(weeks=36)
-        default_end = today
-
-        # Convert Timestamp to .date() with NaT handling
-        min_date = min_date.date() if not pd.isna(min_date) else today
-        max_date = max_date.date() if not pd.isna(max_date) else today
-
-        # Bound defaults to data limits
-        default_start = max(default_start, min_date)
-        default_end = min(default_end, max_date)
-    except Exception as e:
-        st.error(f"Error al procesar fechas: {e}")
-        st.info("Por favor, importa datos válidos a través del panel de administración.")
-        return
-
-    try:
-        start_date, end_date = st.sidebar.date_input(
-            "Rango de fechas",
-            value=[default_start, default_end],
-            min_value=min_date, max_value=max_date
-        )
-
-        period_length = (end_date - start_date).days + 1
-        prev_start = start_date - timedelta(days=period_length)
-        prev_end = start_date - timedelta(days=1)
-
-    except ValueError:
-        st.sidebar.warning("Por favor selecciona un rango válido de fechas (inicio y fin).")
-        st.write("Esperando selección de rango de fechas...")
-        return
+    # Filtros de fechas
+    start_date, end_date, prev_start, prev_end, period_length = fs.get_date_filters(df_track_record_by_muscles)
 
     # ////////////////// Resources ///////////////////////
-    df_muscles_filtered = filter_by_date(df_muscles, start_date, end_date)
-    df_muscles_prev = filter_by_date(df_muscles, prev_start, prev_end)
+    df_muscles_filtered = fs.filter_by_date(df_track_record_by_muscles, start_date, end_date)
+    df_muscles_prev = fs.filter_by_date(df_track_record_by_muscles, prev_start, prev_end)
 
     muscle_col = "muscle_name"
 
@@ -112,7 +73,7 @@ def main():
         'Workload': ('workload_by_muscle','sum'),
         }
 
-    df_processed = calculate_summary_table(
+    df_processed = tables.calculate_summary_table(
                                         df_now=df_muscles_filtered,
                                         df_prev=df_muscles_prev,
                                         group_col=muscle_col,
@@ -121,31 +82,24 @@ def main():
 
     prev_cols = [col for col in df_processed.columns if "_prev" in col]
     df_processed.drop(columns=prev_cols, inplace=True)
-    df_processed = compute_difference_between_kpis(df_processed, 'Series Efectivas', 'Total Series')
+    df_processed = kpis.compute_difference_between_kpis(df_processed, 'Series Efectivas', 'Total Series')
 
     table_1_metrics = [muscle_col] + [col for col in df_processed.columns if any(word in col.lower() for word in ['directas', 'total'])]
-    table_1_metrics = reorder_columns(table_1_metrics)
+    table_1_metrics = fs.reorder_columns(table_1_metrics)
     table_1_metrics.remove('Series Efectivas_vs_Total Series')
+
     table_2_metrics = [muscle_col] + [col for col in df_processed.columns if any(word in col.lower() for word in ['efectivas', 'total'])]
-    table_2_metrics = reorder_columns(table_2_metrics)
+    table_2_metrics = fs.reorder_columns(table_2_metrics)
     table_2_metrics = [col for col in table_2_metrics if col not in ['Series Efectivas_vs_Total Series','%_series_efectivas','Δ_%_series_efectivas']]
+
     table_3_metrics = [muscle_col] + [col for col in df_processed.columns if any(word in col.lower() for word in ['workload'])]
-    table_3_metrics = reorder_columns(table_3_metrics)
+    table_3_metrics = fs.reorder_columns(table_3_metrics)
     # ////////////////// Display //////////////////////////
-    st.markdown(
-        f"""
-        <div style='color: rgba(213, 212, 213,0.5); font-size: 0.9rem;'>
-            <strong>Periodo seleccionado:</strong> {start_date.strftime('%d %b %Y')} — {end_date.strftime('%d %b %Y')} ({period_length} días)
-            <br>
-            <strong>Comparando con:</strong> {prev_start.strftime('%d %b %Y')} — {prev_end.strftime('%d %b %Y')}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    styling.texto_periodo_seleccionado(start_date, end_date, prev_start, prev_end, period_length)
     # Section 1: Direct sets and total sets
     st.subheader("💪 Análisis de series directas y totales")
     # Tabla 1
-    display_summary_table(
+    tables.display_summary_table(
                         df_processed[table_1_metrics],
                         group_col=muscle_col,
                         title="Resumen por ejercicio (actual vs anterior)"
@@ -153,7 +107,7 @@ def main():
 
     # Section 2: Effective sets and total sets
     st.subheader("💪 Análisis de series efectivas y totales")
-    plot_muscle_analysis(
+    charts.plot_muscle_analysis(
         data=df_processed,
         x1_col="Series Efectivas",
         x2_col="Series Efectivas_vs_Total Series",
@@ -167,7 +121,7 @@ def main():
     )
 
     # Tabla 2
-    display_summary_table(
+    tables.display_summary_table(
                         df_processed[table_2_metrics],
                         group_col=muscle_col,
                         title="Resumen por ejercicio (actual vs anterior)"
@@ -176,7 +130,7 @@ def main():
     # Section 3: Workload
     st.subheader("💪 Análisis de carga de trabajo")
 
-    plot_muscle_analysis(
+    charts.plot_muscle_analysis(
         data=df_processed,
         x1_col="Δ_Workload",
         y_col=muscle_col,
@@ -188,7 +142,7 @@ def main():
     )
 
     # Tabla 3
-    display_summary_table(
+    tables.display_summary_table(
                         df_processed[table_3_metrics],
                         group_col=muscle_col,
                         title="Resumen por ejercicio (actual vs anterior)"

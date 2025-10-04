@@ -29,12 +29,12 @@ Dependencies:
 
 import streamlit as st
 import pandas as pd
-from datetime import timedelta, datetime
-from utils.data_loader import load_data, filter_by_date, get_date_filters
-from utils.kpis import compute_kpis, display_kpis
-from utils.tables import calculate_summary_table, double_grouping, display_summary_table
-from utils.charts import plot_line_vs_bar, display_exercise_tags, labels
-from utils.general import format_fecha_column
+
+import utils.kpis as kpis
+import utils.tables as tables
+import utils.charts as charts
+import utils.filters_and_sort as fs
+import utils.styling as styling
 
 st.set_page_config(page_title="Análisis Compound Semanal", layout="wide")
 
@@ -53,53 +53,16 @@ def main():
         None
     """
 
-    # Get user ID from session state if authenticated
-    user_id = st.session_state.get("user_id", None)
+    # Cargar datos
+    df_track_record = st.session_state.get("df_track_record")
+    df_track_record_by_muscles = st.session_state.get("df_track_record_muscles")
 
-    # Load data from SQLite database
-    df, df_muscles = load_data(user_id=user_id)
+    if df_track_record_by_muscles is None or df_track_record is None:
+        st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
+        st.stop()
 
-    # Check if data is empty
-    if df.empty:
-        st.warning("No hay datos disponibles en la base de datos.")
-        st.info("Por favor, importa datos a través del panel de administración en la página de inicio.")
-        return
-
-    # ////////////////// Filtros ////////////////////////
-    try:
-        min_date, max_date = get_date_filters(df)
-        # Default range: last 6 weeks
-        today = datetime.today().date()
-        default_start = today - timedelta(weeks=36)
-        default_end = today
-
-        # Convert Timestamp to .date() with NaT handling
-        min_date = min_date.date() if not pd.isna(min_date) else today
-        max_date = max_date.date() if not pd.isna(max_date) else today
-
-        # Bound defaults to data limits
-        default_start = max(default_start, min_date)
-        default_end = min(default_end, max_date)
-    except Exception as e:
-        st.error(f"Error al procesar fechas: {e}")
-        st.info("Por favor, importa datos válidos a través del panel de administración.")
-        return
-
-    try:
-        start_date, end_date = st.sidebar.date_input(
-            "Rango de fechas",
-            value=[default_start, default_end],
-            min_value=min_date, max_value=max_date
-        )
-
-        period_length = (end_date - start_date).days + 1
-        prev_start = start_date - timedelta(days=period_length)
-        prev_end = start_date - timedelta(days=1)
-
-    except ValueError:
-        st.sidebar.warning("Por favor selecciona un rango válido de fechas (inicio y fin).")
-        st.write("Esperando selección de rango de fechas...")
-        return
+    # Filtros de fechas
+    start_date, end_date, prev_start, prev_end, period_length = fs.get_date_filters(df_track_record)
 
     granularity = st.sidebar.selectbox(
     "Selecciona la granularidad",
@@ -109,35 +72,35 @@ def main():
     )
 
     # ////////////////// Resources ///////////////////////
-    df_filtered = filter_by_date(df, start_date, end_date)
-    df_prev = filter_by_date(df, prev_start, prev_end)
-    df_muscles_filtered = filter_by_date(df_muscles, start_date, end_date)
-    df_muscles_prev = filter_by_date(df_muscles, prev_start, prev_end)
+    df_filtered = fs.filter_by_date(df_track_record, start_date, end_date)
+    df_prev = fs.filter_by_date(df_track_record, prev_start, prev_end)
+    df_muscles_filtered = fs.filter_by_date(df_track_record_by_muscles, start_date, end_date)
+    df_muscles_prev = fs.filter_by_date(df_track_record_by_muscles, prev_start, prev_end)
 
     # Agregaciones para ejercicios
     groupers = [pd.Grouper(key='fecha', freq=granularity), 'exercise']
     metrics_compound = {'workload': 'sum', '1rm': 'max', 'effective_set': 'sum'}
     metrics_isolated = {'workload': 'sum', 'weight': 'max', 'effective_set': 'sum'}
 
-    compound_agg = double_grouping(
+    compound_agg = tables.double_grouping(
                                 df_filtered,
                                 groupers=groupers,
                                 filter=df_filtered.progress_tracker == 'Compound',
                                 metrics=metrics_compound
                                 )
-    compound_agg_prev = double_grouping(
+    compound_agg_prev = tables.double_grouping(
                                 df_prev,
                                 groupers=groupers,
                                 filter=df_prev.progress_tracker == 'Compound',
                                 metrics=metrics_compound
                                 )
-    isolate_agg = double_grouping(
+    isolate_agg = tables.double_grouping(
                                 df_filtered,
                                 groupers=groupers,
                                 filter=df_filtered.progress_tracker == 'Isolate',
                                 metrics=metrics_isolated
                                 )
-    isolate_agg_prev = double_grouping(
+    isolate_agg_prev = tables.double_grouping(
                                 df_prev,
                                 groupers=groupers,
                                 filter=df_prev.progress_tracker == 'Isolate',
@@ -155,11 +118,11 @@ def main():
         "weight": "max",
     }
 
-    kpi_now_compound = compute_kpis(compound_agg, agg_map=agg_map_compound)
-    kpi_prev_compound = compute_kpis(compound_agg_prev, agg_map=agg_map_compound)
+    kpi_now_compound = kpis.compute_kpis(compound_agg, agg_map=agg_map_compound)
+    kpi_prev_compound = kpis.compute_kpis(compound_agg_prev, agg_map=agg_map_compound)
 
-    kpi_now_isolate = compute_kpis(isolate_agg, agg_map=agg_map_isolate)
-    kpi_prev_isolate = compute_kpis(isolate_agg_prev, agg_map=agg_map_isolate)
+    kpi_now_isolate = kpis.compute_kpis(isolate_agg, agg_map=agg_map_isolate)
+    kpi_prev_isolate = kpis.compute_kpis(isolate_agg_prev, agg_map=agg_map_isolate)
 
     compound_exercises = df_filtered[df_filtered["progress_tracker"] == "Compound"]["exercise"].unique()
     isolate_exercises = df_filtered[df_filtered["progress_tracker"] == "Isolate"]["exercise"].unique()
@@ -169,11 +132,11 @@ def main():
     isolate_df_filtered = df_filtered[df_filtered["progress_tracker"] == "Isolate"]
     isolate_df_prev = df_prev[df_prev["progress_tracker"] == "Isolate"]
 
-    labels_compound = [labels[4]] + [labels[2]] + [labels[5]]
-    labels_isolate = [labels[4]] + [labels[2]] + [labels[6]]
+    labels_compound = [charts.labels[4]] + [charts.labels[2]] + [charts.labels[5]]
+    labels_isolate = [charts.labels[4]] + [charts.labels[2]] + [charts.labels[6]]
 
     # Tabla 1
-    table_1 = calculate_summary_table(
+    table_1 = tables.calculate_summary_table(
         df_now=compound_df_filtered,
         df_prev=compound_df_prev,
         group_col="rir_range",
@@ -186,7 +149,7 @@ def main():
             "Series Efectivas": ("effective_set", "sum"),
             "Max. 1RM": ("1rm", "max")
     }
-    table_2 = calculate_summary_table(
+    table_2 = tables.calculate_summary_table(
         df_now=compound_df_filtered,
         df_prev=compound_df_prev,
         group_col="exercise",
@@ -199,7 +162,7 @@ def main():
             "Series Efectivas": ("effective_set", "sum"),
             "Max. Peso": ("weight", "max")
     }
-    table_3 = calculate_summary_table(
+    table_3 = tables.calculate_summary_table(
         df_now=isolate_df_filtered,
         df_prev=isolate_df_prev,
         group_col="exercise",
@@ -208,35 +171,26 @@ def main():
     table_3_cols = [col for col in table_3.columns if "prev" not in col]
     # ////////////////// Display ///////////////////////
     st.title("📊 Análisis Compound Semanal")
-    st.markdown(
-        f"""
-        <div style='color: rgba(213, 212, 213,0.5); font-size: 0.9rem;'>
-            <strong>Periodo seleccionado:</strong> {start_date.strftime('%d %b %Y')} — {end_date.strftime('%d %b %Y')} ({period_length} días)
-            <br>
-            <strong>Comparando con:</strong> {prev_start.strftime('%d %b %Y')} — {prev_end.strftime('%d %b %Y')}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    display_exercise_tags(compound_exercises)
-    display_kpis(
+    styling.texto_periodo_seleccionado(start_date, end_date, prev_start, prev_end, period_length)
+    charts.display_exercise_tags(compound_exercises)
+    kpis.display_kpis(
         kpi_now_compound,
         kpi_prev_compound,
         labels=labels_compound
     )
-    compound_agg = format_fecha_column(compound_agg, "fecha", granularity=granularity)
-    plot_line_vs_bar(
+    compound_agg = fs.format_fecha_column(compound_agg, "fecha", granularity=granularity)
+    charts.plot_line_vs_bar(
         compound_agg,
         col_line="workload",
         col_bars="1rm",
         show_labels='bars'
     )
-    display_summary_table(
+    tables.display_summary_table(
         table_1[table_1_cols],
         group_col="rir_range",
         title="💪 Detalle por RIR range"
     )
-    display_summary_table(
+    tables.display_summary_table(
         table_2[table_2_cols],
         group_col="exercise",
         title="💪 Detalle por ejercicio"
@@ -257,15 +211,15 @@ def main():
             'effective_set': 'sum'
         }).reset_index()
 
-        freq_grouped = format_fecha_column(freq_grouped, "fecha", granularity=granularity)
+        freq_grouped = fs.format_fecha_column(freq_grouped, "fecha", granularity=granularity)
 
-        plot_line_vs_bar(
+        charts.plot_line_vs_bar(
             freq_grouped,
             col_line="workload",
             col_bars="1rm",
             show_labels='bars'
         )
-        exercise_by_rir = calculate_summary_table(
+        exercise_by_rir = tables.calculate_summary_table(
             df_now=exercise_muscle_filtered,
             df_prev=exercise_muscle_prev,
             group_col="rir_range",
@@ -274,27 +228,27 @@ def main():
         exercise_by_rir_cols = [
             col for col in exercise_by_rir.columns if "prev" not in col
         ]
-        display_summary_table(
+        tables.display_summary_table(
             exercise_by_rir[exercise_by_rir_cols],
             group_col="rir_range",
             title="💪 Detalle por RIR range"
         )
 
     st.title("📊 Análisis Detallado - Isolate")
-    display_exercise_tags(isolate_exercises)
-    display_kpis(
+    charts.display_exercise_tags(isolate_exercises)
+    kpis.display_kpis(
         kpi_now_isolate,
         kpi_prev_isolate,
         labels=labels_isolate
     )
-    isolate_agg = format_fecha_column(isolate_agg, "fecha", granularity=granularity)
-    plot_line_vs_bar(
+    isolate_agg = fs.format_fecha_column(isolate_agg, "fecha", granularity=granularity)
+    charts.plot_line_vs_bar(
         isolate_agg,
         col_line="workload",
         col_bars="weight",
         show_labels='bars'
     )
-    display_summary_table(
+    tables.display_summary_table(
         table_3[table_3_cols],
         group_col="exercise",
         title="💪 Detalle por ejercicio"
@@ -304,7 +258,7 @@ def main():
         st.subheader(f"🔍 {exercise}")
         exercise_df = df_filtered[df_filtered["exercise"] == exercise]
 
-        exercise_by_rir = calculate_summary_table(
+        exercise_by_rir = tables.calculate_summary_table(
             df_now=exercise_muscle_filtered,
             df_prev=exercise_muscle_prev,
             group_col="rir_range",
@@ -313,7 +267,7 @@ def main():
         exercise_by_rir_cols = [
             col for col in exercise_by_rir.columns if "prev" not in col
         ]
-        display_summary_table(
+        tables.display_summary_table(
             exercise_by_rir[exercise_by_rir_cols],
             group_col="rir_range",
             title="💪 Detalle por RIR range"
@@ -325,9 +279,9 @@ def main():
             'effective_set': 'sum'
             }).reset_index()
 
-        freq_grouped = format_fecha_column(freq_grouped, "fecha", granularity=granularity)
+        freq_grouped = fs.format_fecha_column(freq_grouped, "fecha", granularity=granularity)
 
-        plot_line_vs_bar(freq_grouped,
+        charts.plot_line_vs_bar(freq_grouped,
                          col_line="workload",
                          col_bars="weight",
                          show_labels='bars'

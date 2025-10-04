@@ -21,21 +21,18 @@ Dependencies:
 """
 
 import streamlit as st
-import pandas as pd
-from utils.data_loader import load_and_prepare_data
-from services.datawrangling import filter_by_routine, rep_concatenate
+import services.datawrangling as dw
+import utils.filters_and_sort as fs
 
 st.set_page_config(page_title="Plantillas de Rutinas", layout="wide")
 
 # ---------- Data Loading ----------
-routine_template = load_and_prepare_data(
-    "data/Fitness Personal - Routines.csv",
-    snake_case=True
-)
-exercises = load_and_prepare_data(
-    "data/TrackRecord - MuscleRoles.csv",
-    snake_case=True
-)
+df_templates = st.session_state.get("df_templates")
+df_exercise_dimension_table = st.session_state.get("exercise_dimension_table")
+
+if df_templates is None or df_exercise_dimension_table is None:
+    st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
+    st.stop()
 
 # ---------- Display Routine Templates ----------
 st.title('📋 Plantillas de Rutinas')
@@ -43,34 +40,34 @@ tab1, tab2 = st.tabs(["Rutinas", "Ejercicios"])
 
 # ---------------- Tab 1
 with tab1:
-    routines = routine_template['routine'].unique()
+    routines = df_templates['routine_name'].unique()
 
     for routine in routines:
         st.subheader(f"🏋️ {routine}")
 
-        routine_template_filtered = filter_by_routine(routine_template, routine, 'routine')
-        routine_template_filtered = routine_template_filtered[['exercise', 'rep_t_min', 'rep_t_max']].copy()
-        routine_template_filtered = rep_concatenate(routine_template_filtered, "rep_t_min", "rep_t_max").reset_index(drop=True)
+        df_templates_filtered = fs.filter_by_routine(df_templates, routine, 'routine_name')
+        df_templates_filtered = df_templates_filtered[['exercise', 'repmin', 'repmax']].copy()
+        df_templates_filtered = dw.rep_concatenate(df_templates_filtered, "repmin", "repmax").reset_index(drop=True)
 
         columns_mapping = {
             'exercise': 'Ejercicio',
             'reprange': 'Rango'
         }
 
-        routine_template_filtered.rename(columns=columns_mapping, inplace=True)
+        df_templates_filtered.rename(columns=columns_mapping, inplace=True)
 
         columns_to_show = ['Ejercicio', 'Rango']
 
-        st.dataframe(routine_template_filtered[columns_to_show].set_index('Ejercicio'))
+        st.dataframe(df_templates_filtered[columns_to_show].set_index('Ejercicio'))
 
 # ---------------- Tab 2
 with tab2:
-    columns_to_show = ['id_exercise','id_muscle','id_rol']
-    exercises = exercises[columns_to_show]
+    columns_to_show = ['exercise_name','muscle_name','rol']
+    exercises = df_exercise_dimension_table[columns_to_show]
     exercises.rename(columns=
-        {'id_exercise':'Ejercicio',
-         'id_muscle':'Grupo muscular',
-         'id_rol':'Rol'
+        {'exercise_name':'Ejercicio',
+         'muscle_name':'Grupo muscular',
+         'rol':'Rol'
          },
          inplace=True
     )
