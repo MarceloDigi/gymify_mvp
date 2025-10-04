@@ -29,17 +29,12 @@ Dependencies:
 import streamlit as st
 import streamlit_authenticator as stauth
 import sqlite3
-import pandas as pd
-import hashlib
 import os
-from pathlib import Path
-import yaml
-from yaml.loader import SafeLoader
 import sys
 
 # Add parent directory to path so we can import database modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from database.db_connector import get_db_connection, execute_query, insert_data
+import database.db_connector as connector
 
 # Global variable to store user IDs
 _user_ids = {}
@@ -54,8 +49,8 @@ def get_user_credentials():
     Returns:
         tuple: A dictionary of user credentials and a mapping of usernames to user IDs.
     """
-    conn = get_db_connection()
-    users = execute_query("SELECT id_user, username, name, email, password FROM users")
+    conn = connector.get_db_connection()
+    users = connector.query_to_dataframe("SELECT id_user, username, name, email, password FROM users")
 
     credentials = {
         "usernames": {}
@@ -291,10 +286,10 @@ def init_auth_tables():
     Logs the success or failure of the admin user creation process.
     """
     try:
-        conn = get_db_connection()
+        conn = connector.get_db_connection()
 
         # Check if users table exists and has any users
-        users = execute_query("SELECT COUNT(*) as count FROM users")
+        users = connector.query_to_dataframe("SELECT COUNT(*) as count FROM users")
 
         # If no users exist, create admin user
         if users[0]["count"] == 0:

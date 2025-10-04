@@ -1,34 +1,29 @@
 import pandas as pd
-import sys
-import os
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from pathlib import Path
 import streamlit as st
 
 # Add parent directory to path so we can import database modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from database.db_connector import query_to_dataframe
-
-DB_USER = os.getenv("MYSQLUSER")
-DB_PASSWORD = os.getenv("MYSQLPASSWORD")
-DB_HOST = os.getenv("MYSQLHOST")
-DB_PORT = os.getenv("MYSQLPORT")
-DB_NAME = os.getenv("MYSQLDATABASE")
+import database.db_connector as connector
+import services.etl_oltp_to_olap as etl
 
 @st.cache_data
-def load_dim_data():
-    engine = create_engine(
-    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    )
-
-    sql_exercises = pd.read_sql("SELECT * FROM exercises", con=engine)
-    sql_pattern = pd.read_sql("SELECT * FROM movement_pattern", con=engine)
-    sql_roles = pd.read_sql("SELECT * FROM rol_names", con=engine)
-    sql_pattern_muscle_rol = pd.read_sql("SELECT * FROM pattern_muscle_rol", con=engine)
-    sql_equipments = pd.read_sql("SELECT * FROM equipments", con=engine)
-    sql_muscles = pd.read_sql("SELECT * FROM muscles", con=engine)
-    sql_exercise_muscle_rol = pd.read_sql("SELECT * FROM exercise_muscle_roles", con=engine)
+def load_dim_data(exercises: bool = False,
+                  pattern: bool = False,
+                  roles: bool = False,
+                  pattern_muscle_rol: bool = False,
+                  equipments: bool = False,
+                  muscles: bool = False,
+                  exercise_muscle_rol: bool = False,
+                  exercise_dim_table: bool = False
+                  ) -> dict:
+    
+    sql_exercises = connector.query_to_dataframe("SELECT * FROM exercises") if exercises else None
+    sql_pattern = connector.query_to_dataframe("SELECT * FROM movement_pattern") if pattern else None
+    sql_roles = connector.query_to_dataframe("SELECT * FROM rol_names") if roles else None
+    sql_pattern_muscle_rol = connector.query_to_dataframe("SELECT * FROM pattern_muscle_rol") if pattern_muscle_rol else None
+    sql_equipments = connector.query_to_dataframe("SELECT * FROM equipments") if equipments else None
+    sql_muscles = connector.query_to_dataframe("SELECT * FROM muscles") if muscles else None
+    sql_exercise_muscle_rol = connector.query_to_dataframe("SELECT * FROM exercise_muscle_roles") if exercise_muscle_rol else None
+    view_exercise_dimension_table = etl.create_exercise_dimension_table() if exercise_dim_table else None
 
     return {
         "exercises": sql_exercises,
@@ -38,95 +33,44 @@ def load_dim_data():
         "equipments": sql_equipments,
         "muscles": sql_muscles,
         "exercise_muscle_roles": sql_exercise_muscle_rol,
+        'exercise_dimension_table': view_exercise_dimension_table
     }    
 
-def load_data(aggregated_path=None, muscles_path=None, user_id=None):
+def load_workout_data(track_record: bool = True, 
+                      track_record_muscles: bool = True):
     """
-    Load workout data and muscle breakdown data from SQLite database
-
-    Parameters:
-        aggregated_path: Legacy parameter, not used (kept for compatibility)
-        muscles_path: Legacy parameter, not used (kept for compatibility)
-        user_id: User ID to filter data by (if None, returns all data)
-
-    Returns:
-        df: DataFrame with workout data
-        df_muscles: DataFrame with muscle breakdown data
+    Carga los datos principales (workouts y workouts_by_muscle)
+    aplicando el filtro por usuario si está en sesión.
+    Retorna:
+        - df_track_record
+        - df_track_record_by_muscles
     """
-    # Build user filter condition
-    user_filter = f"WHERE user_id = {user_id}" if user_id else ""
-
-    # Load workout data
-    df = query_to_dataframe(f"""
-        SELECT * FROM workouts
-        {user_filter}
-        ORDER BY fecha DESC
-    """)
-
-    # Load muscle breakdown data
-    df_muscles = query_to_dataframe(f"""
-        SELECT * FROM workouts_by_muscle
-        {user_filter}
-        ORDER BY fecha DESC
-    """)
-
-    # Convert date columns to datetime
-    for col in ['fecha', 'fecha_prev', 'fecha_next']:
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col])
-        if col in df_muscles.columns:
-            df_muscles[col] = pd.to_datetime(df_muscles[col])
-
-    return df, df_muscles
-
-def load_and_prepare_data(path=None, datecols=None, snake_case=False, table_name=None, user_id=None):
-    """
-    Load data from SQLite database or CSV file
-
-    Parameters:
-        path: Path to CSV file (legacy, can be None if using table_name)
-        datecols: List of date columns to parse (for CSV files)
-        snake_case: Whether to convert column names to snake_case
-        table_name: Name of the table to load from database
-        user_id: User ID to filter data by (if None, returns all data)
-
-    Returns:
-        df: DataFrame with data
-    """
-    if table_name:
-        # Build user filter condition
+    try:
+        user_id = st.session_state.get("user_id")
         user_filter = f"WHERE user_id = {user_id}" if user_id else ""
 
-        # Load data from database
-        df = query_to_dataframe(f"""
-            SELECT * FROM {table_name}
-            {user_filter}
-        """)
+        if track_record:
+            df_track_record = connector.query_to_dataframe(
+                f"SELECT * FROM workouts {user_filter} ORDER BY fecha DESC"
+            )
+            # Validación de datos
+            if df_track_record.empty:
+                st.warning("No hay datos disponibles en la base de datos.")
+                st.info("Por favor, importa datos desde el panel de administración en la página de inicio.")
+                st.stop()
 
-        # Convert date columns to datetime if specified
-        if datecols:
-            for col in datecols:
-                if col in df.columns:
-                    df[col] = pd.to_datetime(df[col])
-    else:
-        # Legacy CSV loading
-        if datecols is not None:
-            df = pd.read_csv(path, parse_dates=datecols)
+        if track_record_muscles:
+            df_track_record_by_muscles = connector.query_to_dataframe(
+                f"SELECT * FROM workouts_by_muscle {user_filter} ORDER BY fecha DESC"
+            )
+            if track_record:
+                return df_track_record, df_track_record_by_muscles
+            else:
+                return df_track_record_by_muscles
         else:
-            df = pd.read_csv(path)
+            if track_record:
+                return df_track_record
 
-    # Convert column names to snake_case if requested
-    if snake_case:
-        df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_").str.replace("-", "_")
-
-    return df
-
-def get_date_filters(df, sidebar_label="Rango de fechas"):
-    """Get min and max dates from a DataFrame for date filters"""
-    min_date = df["fecha"].min()
-    max_date = df["fecha"].max()
-    return min_date, max_date
-
-def filter_by_date(df, start_date, end_date):
-    """Filter a DataFrame by date range"""
-    return df[(df["fecha"] >= pd.to_datetime(start_date)) & (df["fecha"] <= pd.to_datetime(end_date))]
+    except Exception as e:
+        st.error(f"Error al cargar datos: {e}")
+        st.stop()
