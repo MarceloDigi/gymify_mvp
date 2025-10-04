@@ -282,7 +282,7 @@ def reorder_cols(df: pd.DataFrame, df_muscles: pd.DataFrame):
 
     return df, df_muscles
 
-def complete_cleaning(input_user_df):
+def complete_cleaning(input_user_df, muscle_roles):
     """
     Complete cleaning process for the input user dataframe.
     """
@@ -343,7 +343,6 @@ def complete_cleaning(input_user_df):
         }
 
         df = define_progression_exercises(df, progression_exercises)
-        muscle_roles = etl.create_exercise_dimension_table(conn=conn)
         df_by_muscle = merge_muscleroles_and_inputdf(df, muscle_roles)
         logging.info(f"✅ Merge muscleroles: {len(df_by_muscle)} filas.")
     except Exception as e:
