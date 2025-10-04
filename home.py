@@ -9,7 +9,6 @@ Features:
 - **User Greeting**: Personalized greeting.
 - **Admin Section**: Information and tools for admin users.
 """
-
 import streamlit as st
 import sys
 import os
@@ -60,13 +59,13 @@ def load_workout_data():
     df_muscles = loader.load_workout_data(track_record=False)
     return df_track, df_muscles
 
-sql_data = loader.load_dim_data(exercises=True, exercise_dim_table=True)
-
 # --- Global data initialization ---
 def initialize_global_data():
     """Carga datos globales una sola vez por sesión."""
     if "df_track_record" not in st.session_state or "df_track_record_muscles" not in st.session_state:
         st.info("Cargando datos globales... ⏳")
+
+        sql_data = loader.load_dim_data(exercises=True, exercise_dim_table=True)
 
         df_track_record, df_track_record_muscles = load_workout_data()
         df_templates = load_templates_from_gsheet()
@@ -110,7 +109,7 @@ if username == "admin":
 # --- Optional: botón para recargar manualmente ---
 with st.sidebar:
     if st.button("🔄 Recargar datos globales"):
-        for key in ["df_track_record", "df_track_record_muscles", "df_templates"]:
+        for key in ["df_track_record", "df_track_record_muscles", "df_templates", 'exercises', 'exercise_dimension_table']:
             if key in st.session_state:
                 del st.session_state[key]
         st.cache_data.clear()
