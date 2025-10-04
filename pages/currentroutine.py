@@ -37,7 +37,7 @@ import services.datawrangling as dw
 import utils.filters_and_sort as fs
 import services.etl_input_to_dwh as etl_input
 import services.rm_calculator as rm_calculator
-import database.data_validation as dv
+import services.data_validation as dv
 import utils.tables as tables
 
 st.set_page_config(page_title="Entrena", layout="wide")
