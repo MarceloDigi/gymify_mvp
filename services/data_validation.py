@@ -4,7 +4,7 @@ import streamlit as st
 from datetime import datetime
 import re
 
-eh_techniques = ['Myo-reps', 'Parciales', 'Dropset', 'Rest-pause', 'Clúster']
+eh_techniques = ['Myoreps', 'Parciales', 'Dropset', 'Rest-pause', 'Clúster']
 
 def clean_rango(value):
     """
