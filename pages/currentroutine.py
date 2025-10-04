@@ -35,18 +35,21 @@ from dotenv import load_dotenv
 
 import services.datawrangling as dw
 import utils.filters_and_sort as fs
-import services.etl_input_to_dwh as etl_input
+import utils.tables as tables
+import services.transform_input_to_dwh as ts_input
 import services.rm_calculator as rm_calculator
 import services.data_validation as dv
-import utils.tables as tables
+import services.dump_data as dump
 
 st.set_page_config(page_title="Entrena", layout="wide")
 
 # Cargar datos
 df_track_record = st.session_state.get("df_track_record")
 df_templates = st.session_state.get("df_templates")
+sql_exercises = st.session_state.get("exercises")
+exercise_dimension_table = st.session_state.get("exercise_dimension_table")
 
-if df_track_record is None or df_templates is None:
+if df_track_record is None or df_templates is None or sql_exercises is None:
     st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
     st.stop()
 
@@ -69,14 +72,6 @@ def main():
     # Cargar variables de entorno
     load_dotenv()
 
-    # Carga controlada y persistente en sesión
-    df_templates = st.session_state.get("df_templates")
-    df_track_record = st.session_state.get("df_track_record")
-    sql_exercises = st.session_state.get("exercises")
-    
-    if df_templates is None or df_track_record is None or sql_exercises is None:
-        st.warning("Datos no cargados. Vuelve a la página principal para inicializarlos.")
-        st.stop()
     # /////////////////////// Filter ///////////////////////
 
     # Seleccionar la rutina
@@ -192,7 +187,7 @@ def main():
         # ---------- ETL / LIMPIEZA ----------
         try:
             validated_df["routine"] = selected_routine
-            validated_df, validated_df_muscles = etl_input.complete_cleaning(validated_df)
+            validated_df, validated_df_muscles = ts_input.complete_cleaning(validated_df, muscle_roles=exercise_dimension_table)
         except Exception as e:
             st.error(f"Error durante la limpieza ETL: {type(e).__name__} - {e}")
             st.info("Consulta el archivo de logs 'etl_debug_*.log' para más detalles.")
@@ -206,8 +201,8 @@ def main():
             if validated_df_muscles is None:
                 raise ValueError("Track Record Muscles es None.")
             
-            validated_df.to_csv("test_validated_df.csv", index=False)
-            validated_df_muscles.to_csv("test_validated_df_muscles.csv", index=False)
+            dump.dump_into_sql(validated_df, table_name='workouts', oltp_db=False)
+            dump.dump_into_sql(validated_df_muscles, table_name='workouts_by_muscle', oltp_db=False)
             st.success("✅ Datos guardados correctamente.")
         except Exception as e:
             st.error(f"Error guardando datos: {e}")
