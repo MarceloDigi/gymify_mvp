@@ -15,9 +15,13 @@ DB_PASSWORD = os.getenv("MYSQLPASSWORD")
 DB_HOST = os.getenv("MYSQLHOST")
 DB_PORT = os.getenv("MYSQLPORT")
 DB_NAME = os.getenv("MYSQLDATABASE")
+DWH_DBNAME = os.getenv("DWHDATABASE")
 
-def get_engine():
-    connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+def get_engine(oltp_db: bool = True):
+    if oltp_db:
+        connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    else:
+        connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DWH_DBNAME}"
     if not connection_string:
         raise ValueError("❌ MY_SQL_CONNECTION no está definido en el entorno.")
     print("🔍 Conexión detectada")
