@@ -10,30 +10,27 @@ Features:
 - **Admin Section**: Information and tools for admin users.
 """
 import streamlit as st
-import sys
-import os
+
+# --- Imports ---
+import auth.authenticator as auth
+import utils.data_loader as loader
+import database.gsheet_connnector as gsheet_conn
 
 # --- Streamlit page configuration ---
 st.set_page_config(page_title="🏠 Dashboard Inicio", layout="wide")
 
-# --- Imports ---
-import utils.data_loader as loader
-import database.gsheet_connnector as gsheet_conn
-
 # --- Authentication ---
-USE_AUTH = False  # Cambia a False para desactivar login
+USE_AUTH = True  # Cambia a False para desactivar login
 
 if USE_AUTH:
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from auth.authenticator import check_authentication, logout_button
-    is_authenticated, username, name, authenticator = check_authentication()
+    is_authenticated, username, name, authenticator = auth.check_authentication()
 
     if not is_authenticated:
         st.stop()
 
     with st.sidebar:
         st.write(f"👋 Hola, {name}")
-        logout_button(authenticator)
+        auth.logout_button(authenticator)
 
 else:
     username = "admin"
@@ -41,7 +38,6 @@ else:
     st.warning("🔓 Modo sin autenticación activo. Todos los datos están visibles.")
     with st.sidebar:
         st.write(f"👋 Hola, {name} (modo libre)")
-
 
 # --- Cached data loaders ---
 @st.cache_data(ttl=600)
