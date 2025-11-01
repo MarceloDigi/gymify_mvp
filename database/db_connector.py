@@ -1,76 +1,89 @@
-import pandas as pd
+# database/db_connector.py
 from pathlib import Path
 from sqlalchemy import create_engine, text
-import os
-from dotenv import load_dotenv
-import logging
+import pandas as pd
 import streamlit as st
+import logging, os
 from datetime import datetime
+from urllib.parse import quote_plus
 
-# Cargar .env con ruta absoluta desde la raíz del proyecto
-env_path = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+# ---- Logging: menos ruido y sin escribir archivo en Cloud ----
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# ///////////////////// MySQL Database Connection ////////////////////
-# Configura un logger a archivo con timestamp
-log_dir = Path.cwd() / "logs"
-logfile = log_dir / f"db_connector_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-logging.basicConfig(
-    filename=logfile,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+# ---- Lectura de credenciales: 1) st.secrets 2) os.getenv ----
+def _get(key: str, default=None):
+    try:
+        if key in st.secrets:
+            return st.secrets.get(key, default)
+    except Exception:
+        pass
+    return os.getenv(key, default)
 
-DB_USER = os.getenv("MYSQLUSER")
-DB_PASSWORD = os.getenv("MYSQLPASSWORD")
-DB_HOST = os.getenv("MYSQLHOST")
-DB_PORT = os.getenv("MYSQLPORT")
-DB_NAME = os.getenv("MYSQLDATABASE")
-DWH_DBNAME = os.getenv("DWHDATABASE")
+def _mysql_url(db_name_key: str) -> str:
+    """
+    Construye la URL de conexión MySQL de forma segura.
+    Usa cualquiera de estos esquemas:
+      - db_url (completa)
+      - MYSQLUSER / MYSQLPASSWORD / MYSQLHOST / MYSQLPORT / <db_name_key>
+    """
+    # 1) URL completa si está
+    full = _get("db_url")
+    if full:
+        return full
+
+    # 2) Por partes (soporta tus nombres actuales del .env)
+    user = _get("db_user") or _get("MYSQLUSER")
+    pwd  = _get("db_password") or _get("MYSQLPASSWORD")
+    host = _get("db_host") or _get("MYSQLHOST")
+    port = _get("db_port") or _get("MYSQLPORT")
+    name = _get("db_name") or _get(db_name_key)  # p.ej. MYSQLDATABASE / DWHDATABASE
+
+    engine = _get("db_engine", "mysql+pymysql")
+
+    # Validaciones mínimas
+    if not all([user, pwd, host, name]):
+        raise RuntimeError("Config DB incompleta: define 'db_url' o las claves por partes (user/password/host/name).")
+
+    # Puerto opcional (evita ':None')
+    port_part = f":{port}" if (port and str(port).strip().lower() != "none") else ""
+
+    # Escapar credenciales por si hay símbolos
+    return f"{engine}://{quote_plus(user)}:{quote_plus(pwd)}@{host}{port_part}/{name}"
 
 @st.cache_resource(show_spinner=False)
 def get_engine(oltp_db: bool = True):
-    if oltp_db:
-        connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    else:
-        connection_string = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DWH_DBNAME}"
-    if not connection_string:
-        raise ValueError("❌ MY_SQL_CONNECTION no está definido en el entorno.")
-
-    return create_engine(connection_string, pool_pre_ping=True, pool_recycle=1800)  # ← añade esto
+    # Tu diseño original alterna OLTP vs DWH usando nombres distintos de DB
+    db_key = "MYSQLDATABASE" if oltp_db else "DWHDATABASE"
+    url = _mysql_url(db_key)
+    return create_engine(url, pool_pre_ping=True, pool_recycle=1800)
 
 def get_db_connection(oltp_db: bool = True):
-    """
-        Parameters
-    ----------
-    oltp_db : bool, optional
-        If True, connects to OLTP DB; otherwise connects to DWH (OLAP).
-    """
     try:
-        engine = get_engine(oltp_db=oltp_db)
-        conn = engine.connect()
-        logging.debug(f"✅ Database connection (OLTP={oltp_db}) established successfully.")
+        eng = get_engine(oltp_db=oltp_db)
+        conn = eng.connect()
+        logging.info(f"✅ Conectado a DB (OLTP={oltp_db})")
         return conn
-
     except Exception as e:
         logging.exception("❌ Error while connecting to the database.")
         return None
 
 @st.cache_data(ttl=600, show_spinner=False)
 def query_to_dataframe(query, params=(), oltp_db: bool = True) -> pd.DataFrame:
-    """Execute a query and return results as a pandas DataFrame"""
-    conn = get_db_connection(oltp_db = oltp_db)
+    conn = get_db_connection(oltp_db=oltp_db)
+    if conn is None:
+        return pd.DataFrame()
     df = pd.read_sql_query(query, conn, params=params)
     conn.close()
     return df
 
 def insert_data(table, data_dict):
-    """Insert a row of data into a table"""
     conn = get_db_connection()
-    columns = ', '.join(data_dict.keys())
-    placeholders = ', '.join([f":{key}" for key in data_dict.keys()])
-    query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
-    result = conn.execute(text(query), data_dict)
+    if conn is None:
+        raise RuntimeError("No DB connection.")
+    cols = ', '.join(data_dict.keys())
+    placeholders = ', '.join([f":{k}" for k in data_dict.keys()])
+    q = f"INSERT INTO {table} ({cols}) VALUES ({placeholders})"
+    result = conn.execute(text(q), data_dict)
     conn.commit()
     last_id = result.lastrowid
     conn.close()
