@@ -54,20 +54,21 @@ def _mysql_url(db_name_key: str) -> str:
 
 @st.cache_resource(show_spinner=False)
 def get_engine(oltp_db: bool = True):
-    # Tu diseño original alterna OLTP vs DWH usando nombres distintos de DB
-    db_key = "MYSQLDATABASE" if oltp_db else "DWHDATABASE"
-    url = _mysql_url(db_key)
-    # Timeouts y pre_ping para proxies
+    url = _mysql_url("MYSQLDATABASE" if oltp_db else "DWHDATABASE")
     return create_engine(
         url,
-        pool_pre_ping=True,     # comprueba la conexión antes de usarla
-        pool_recycle=180,       # recicla conexiones para evitar cortes del proxy
-        pool_size=3,            # pools pequeños en Cloud
+        pool_pre_ping=True,   # comprueba conexión antes de usarla
+        pool_recycle=120,     # recicla conexiones para evitar cortes del proxy
+        pool_size=2,
         max_overflow=0,
         connect_args={
             "connect_timeout": 10,
             "read_timeout": 10,
             "write_timeout": 10,
+            # Muchos proxies de Railway requieren TLS en el puerto externo
+            "ssl": {"cert_reqs": ssl.CERT_NONE},  # desactiva verificación del cert (útil con proxy)
+            "charset": "utf8mb4",
+            "autocommit": True,
         },
     )
 
