@@ -57,7 +57,19 @@ def get_engine(oltp_db: bool = True):
     # Tu diseño original alterna OLTP vs DWH usando nombres distintos de DB
     db_key = "MYSQLDATABASE" if oltp_db else "DWHDATABASE"
     url = _mysql_url(db_key)
-    return create_engine(url, pool_pre_ping=True, pool_recycle=1800)
+    # Timeouts y pre_ping para proxies
+    return create_engine(
+        url,
+        pool_pre_ping=True,     # comprueba la conexión antes de usarla
+        pool_recycle=180,       # recicla conexiones para evitar cortes del proxy
+        pool_size=3,            # pools pequeños en Cloud
+        max_overflow=0,
+        connect_args={
+            "connect_timeout": 10,
+            "read_timeout": 10,
+            "write_timeout": 10,
+        },
+    )
 
 def get_db_connection(oltp_db: bool = True):
     try:
