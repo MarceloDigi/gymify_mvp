@@ -28,11 +28,11 @@ Dependencies:
 import streamlit as st
 import streamlit_authenticator as stauth
 import sqlite3
-import os
-import sys
 import logging
 from datetime import datetime
 
+AUTH_KEY   = st.secrets["auth_key"]
+COOKIE_NAME= st.secrets.get("cookie_name", "fitness_dashboard_auth")
 # =============================
 # CONFIGURACIÓN DE LOGGING
 # =============================
@@ -43,7 +43,6 @@ logging.basicConfig(
 )
 
 # Añadir el path para importar el conector de base de datos
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import database.db_connector as connector
 
 _user_ids = {}
@@ -97,8 +96,8 @@ def build_authenticator_once(force_refresh: bool = False):
     try:
         authenticator = stauth.Authenticate(
             credentials=credentials,
-            cookie_name="fitness_dashboard_auth",
-            key="fitness_dashboard",
+            cookie_name=COOKIE_NAME,
+            key=AUTH_KEY,
             cookie_expiry_days=30,
         )
         logging.debug("Authenticator successfully configured.")
@@ -109,32 +108,6 @@ def build_authenticator_once(force_refresh: bool = False):
     st.session_state["authenticator"] = authenticator
     st.session_state["user_ids"] = user_ids
     return authenticator
-
-def setup_authenticator():
-    """Initialize authenticator and store user IDs."""
-    logging.debug("Setting up authenticator...")
-    credentials, user_ids = get_user_credentials()
-
-    if not credentials.get("usernames"):
-        logging.warning("No users found in database during authenticator setup.")
-
-    global _user_ids
-    _user_ids = user_ids
-
-    try:
-        authenticator = stauth.Authenticate(
-            credentials=credentials,
-            cookie_name="fitness_dashboard_auth",
-            key="fitness_dashboard",
-            cookie_expiry_days=30
-        )
-        logging.debug("Authenticator successfully configured.")
-    except Exception as e:
-        logging.error(f"Failed to initialize authenticator: {e}")
-        raise
-
-    return authenticator
-
 
 def create_user(username, name, email, born_date, weight, height, password):
     """Create user with detailed error tracing."""
