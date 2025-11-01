@@ -5,7 +5,7 @@ import streamlit as st
 import database.db_connector as connector
 import services.etl_oltp_to_olap as etl
 
-@st.cache_data
+@st.cache_data(ttl=600, show_spinner=False)
 def load_dim_data(exercises: bool = False,
                   pattern: bool = False,
                   roles: bool = False,
@@ -36,41 +36,46 @@ def load_dim_data(exercises: bool = False,
         'exercise_dimension_table': view_exercise_dimension_table
     }    
 
-def load_workout_data(track_record: bool = True, 
+@st.cache_data(ttl=600, show_spinner=False)
+def load_workout_data(user_id: int | None,
+                      track_record: bool = True, 
                       track_record_muscles: bool = True):
     """
-    Carga los datos principales (workouts y workouts_by_muscle)
-    aplicando el filtro por usuario si está en sesión.
-    Retorna:
-        - df_track_record
-        - df_track_record_by_muscles
+    Carga los datos principales aplicando filtro por user_id si existe.
+    Nunca detiene la app (no usa st.stop); devuelve DF vacíos si no hay datos.
     """
+    user_filter = f"WHERE id_user = {user_id}" if user_id else ""
+    df_track_record = pd.DataFrame()
+    df_track_record_by_muscles = pd.DataFrame()
     try:
-        user_id = st.session_state.get("user_id")
-        user_filter = f"WHERE user_id = {user_id}" if user_id else ""
-
         if track_record:
             df_track_record = connector.query_to_dataframe(
                 f"SELECT * FROM workouts {user_filter} ORDER BY fecha DESC"
             )
-            # Validación de datos
-            if df_track_record.empty:
-                st.warning("No hay datos disponibles en la base de datos.")
-                st.info("Por favor, importa datos desde el panel de administración en la página de inicio.")
-                st.stop()
 
         if track_record_muscles:
             df_track_record_by_muscles = connector.query_to_dataframe(
                 f"SELECT * FROM workouts_by_muscle {user_filter} ORDER BY fecha DESC"
             )
-            if track_record:
-                return df_track_record, df_track_record_by_muscles
-            else:
-                return df_track_record_by_muscles
+
+        # Devuelve según flags
+        if track_record and track_record_muscles:
+            return df_track_record, df_track_record_by_muscles
+        elif track_record:
+            return df_track_record
+        elif track_record_muscles:
+            return df_track_record_by_muscles
         else:
-            if track_record:
-                return df_track_record
+            return pd.DataFrame()  # caso raro
 
     except Exception as e:
+        # No parar la app: devuelve vacíos y deja que la UI avise
         st.error(f"Error al cargar datos: {e}")
-        st.stop()
+        if track_record and track_record_muscles:
+            return pd.DataFrame(), pd.DataFrame()
+        elif track_record:
+            return pd.DataFrame()
+        elif track_record_muscles:
+            return pd.DataFrame()
+        else:
+            return pd.DataFrame()
