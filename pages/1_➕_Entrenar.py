@@ -68,7 +68,7 @@ def main():
         None
     """
     # Get user ID from session state if authenticated
-    user_id = st.session_state.get("user_id", None)
+    user_id = st.session_state.get("user_id", 1)
     # Cargar variables de entorno
     load_dotenv()
 
@@ -187,7 +187,10 @@ def main():
         # ---------- ETL / LIMPIEZA ----------
         try:
             validated_df["routine"] = selected_routine
+            validated_df['id_user'] = user_id
             validated_df, validated_df_muscles = ts_input.complete_cleaning(validated_df, muscle_roles=exercise_dimension_table)
+            validated_df.to_csv(fr'data\validated_df_{selected_date}_{selected_routine}_user{user_id}.csv', index=False)
+            validated_df_muscles.to_csv(fr'data\validated_df_muscles_{selected_date}_{selected_routine}_user{user_id}.csv', index=False)
         except Exception as e:
             st.error(f"Error durante la limpieza ETL: {type(e).__name__} - {e}")
             st.info("Consulta el archivo de logs 'etl_debug_*.log' para más detalles.")
