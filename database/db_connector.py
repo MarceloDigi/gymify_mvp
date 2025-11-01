@@ -42,6 +42,8 @@ def _mysql_url(db_name_key: str) -> str:
 
     # Validaciones mínimas
     if not all([user, pwd, host, name]):
+        logging.error(f"DBG user={user} host={host} name={name} port={port}")
+        logging.error(f"DBG keys in secrets: {list(getattr(st, 'secrets', {}).keys())}")
         raise RuntimeError("Config DB incompleta: define 'db_url' o las claves por partes (user/password/host/name).")
 
     # Puerto opcional (evita ':None')
