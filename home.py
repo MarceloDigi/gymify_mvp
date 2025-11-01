@@ -24,12 +24,13 @@ USE_AUTH = True  # Cambia a False para desactivar login
 
 if USE_AUTH:
     is_authenticated, username, name, authenticator = auth.check_authentication()
+    just_name = name.split(" ")[0] if name else "Usuario"
 
     if not is_authenticated:
         st.stop()
 
     with st.sidebar:
-        st.write(f"👋 Hola, {name}")
+        st.write(f"👋 Hola, {just_name}!")
         auth.logout_button(authenticator)
 
 else:
@@ -48,42 +49,39 @@ def load_templates_from_gsheet():
         worksheet="Routines"
     )
 
-@st.cache_data(ttl=600)
-def load_workout_data():
-    """Carga los datasets principales desde la base de datos MySQL."""
-    df_track = loader.load_workout_data(track_record_muscles=False)
-    df_muscles = loader.load_workout_data(track_record=False)
-    return df_track, df_muscles
-
 # --- Global data initialization ---
-def initialize_global_data():
-    """Carga datos globales una sola vez por sesión."""
-    if "df_track_record" not in st.session_state or "df_track_record_muscles" not in st.session_state:
+def initialize_global_data(show_toasts=False):
+    """Carga datos globales una sola vez por sesión (solo después del login)."""
+    uid = st.session_state.get("user_id")  # <-- aquí tomas el ID del usuario autenticado
+
+    if not uid:
+        st.warning("No hay usuario autenticado. Esperando login...")
+        return
+
+    if show_toasts:
         st.info("Cargando datos globales... ⏳")
 
-        sql_data = loader.load_dim_data(exercises=True, exercise_dim_table=True)
+    # === Carga cacheada de datos ===
+    sql_data = loader.load_dim_data(exercises=True, exercise_dim_table=True)
+    df_track_record, df_track_record_muscles = loader.load_workout_data(
+        uid,
+        track_record=True,
+        track_record_muscles=True
+    )
 
-        df_track_record, df_track_record_muscles = load_workout_data()
-        df_templates = load_templates_from_gsheet()
-        df_exercises = sql_data['exercises']
-        df_exercise_dimension_table = sql_data['exercise_dimension_table']
+    # === Guarda en session_state ===
+    st.session_state["df_track_record"] = df_track_record
+    st.session_state["df_track_record_muscles"] = df_track_record_muscles
+    st.session_state["df_templates"] = load_templates_from_gsheet()
+    st.session_state["exercises"] = sql_data["exercises"]
+    st.session_state["exercise_dimension_table"] = sql_data["exercise_dimension_table"]
+    st.session_state["_bootstrapped"] = True  # ← marca que ya inicializaste
 
-        st.session_state["df_track_record"] = df_track_record
-        st.session_state["df_track_record_muscles"] = df_track_record_muscles
-        st.session_state["df_templates"] = df_templates
-        st.session_state["exercises"] = df_exercises
-        st.session_state['exercise_dimension_table'] = df_exercise_dimension_table
-
+    if show_toasts:
         st.success("✅ Datos cargados correctamente.")
-    else:
-        st.session_state["df_track_record"]
-        st.session_state["df_track_record_muscles"]
-        st.session_state["df_templates"]
-        st.session_state["exercises"]
-        st.session_state['exercise_dimension_table']
 
 # --- Run initialization ---
-initialize_global_data()
+initialize_global_data(show_toasts=True)
 
 # --- Main page content ---
 st.title("🏠 Bienvenido al Dashboard de Entrenamiento")
@@ -109,4 +107,4 @@ with st.sidebar:
             if key in st.session_state:
                 del st.session_state[key]
         st.cache_data.clear()
-        st.experimental_rerun()
+        st.rerun()
