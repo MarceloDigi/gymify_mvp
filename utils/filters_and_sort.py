@@ -33,8 +33,8 @@ def order_historial(df):
     if "fecha" in df.columns:
         sort_cols.append("fecha")
         ascending.append(False)
-    if "id_serie" in df.columns:
-        sort_cols.append("id_serie")
+    if "id_set" in df.columns:
+        sort_cols.append("id_set")
         ascending.append(True)
 
     if not sort_cols:
