@@ -240,12 +240,21 @@ def login_page():
         return None, None, None, None
 
     try:
-        name, authentication_status, username = authenticator.login("Login", "main")
+        # 👇 firma nueva para streamlit-authenticator >= 0.3.0
+        name, authentication_status, username = authenticator.login(
+            fields={
+                "Form name": "Login",
+                "Username": "Username",
+                "Password": "Password"
+            },
+            location="main"  # valores válidos: "main", "sidebar", "unrendered"
+        )
         logging.debug(f"Login attempt - Username: {username}, Status: {authentication_status}")
     except Exception as e:
         st.error(f"Authentication error: {e}")
         logging.error(f"Authenticator login() failed: {e}")
         return None, None, None, authenticator
+
 
     # Handle authentication result
     if authentication_status is True:
