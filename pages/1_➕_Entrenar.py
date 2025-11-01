@@ -75,7 +75,7 @@ def main():
     # /////////////////////// Filter ///////////////////////
 
     # Seleccionar la rutina
-    routines = df_track_record['routine'].unique()
+    routines = sorted(df_track_record['routine'].unique())
 
     # /////////////////////// Display //////////////////////
     st.title('🏋🏽‍♂️ Entrenamiento')

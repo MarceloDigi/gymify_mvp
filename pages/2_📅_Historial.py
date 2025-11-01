@@ -41,7 +41,7 @@ tab1, tab2 = st.tabs(["Por Rutina", "Por Ejercicio"])
 
 # ---------- Tab 1: Histórico por Rutina ----------
 with tab1:
-    routines = df_track_record['routine'].unique()
+    routines = sorted(df_track_record['routine'].unique())
     selected_routine = st.selectbox("Selecciona la rutina", routines)
 
     df_track_record_filtered = fs.filter_by_routine(df_track_record, selected_routine, 'routine')
@@ -73,7 +73,7 @@ with tab1:
 
 # ---------- Tab 2: Histórico por Ejercicio ----------
 with tab2:
-    exercises = df_track_record['exercise'].unique()
+    exercises = sorted(df_track_record['exercise'].unique())
     selected_exercise = st.selectbox("Selecciona el ejercicio", exercises)
 
     df_track_record_exercise = df_track_record[df_track_record['exercise'] == selected_exercise].copy()
