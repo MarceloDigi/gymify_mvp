@@ -30,6 +30,8 @@ import streamlit_authenticator as stauth
 import sqlite3
 import logging
 from datetime import datetime
+import time
+import pandas as pd
 
 AUTH_KEY   = st.secrets["auth_key"]
 COOKIE_NAME= st.secrets.get("cookie_name", "fitness_dashboard_auth")
@@ -54,21 +56,34 @@ _user_ids = {}
 @st.cache_data(ttl=600, show_spinner=False)
 def get_user_credentials():
     """Fetch user credentials from DB (normaliza usernames a minúsculas)."""
-    logging.debug("Fetching user credentials from database...")
+    logging.info("🔍 Fetching user credentials from database...")
     try:
-        users = connector.query_to_dataframe(
-            "SELECT id_user, username, name, email, password FROM users"
-        )
-        logging.debug(f"Retrieved {len(users)} users from DB.")
+        conn = connector.get_db_connection()
+        if conn is None:
+            logging.error("❌ No DB connection available.")
+            return {"usernames": {}}, {}
+
+        t0 = time.time()
+        rows = conn.execute("SELECT id_user, username, name, email, password FROM users").fetchall()
+        dt = (time.time() - t0) * 1000
+        logging.info(f"✅ Users fetched: {len(rows)} in {dt:.0f} ms")
+
+        if len(rows) == 0:
+            logging.warning("⚠️ No users found in DB.")
+            return {"usernames": {}}, {}
+
+        # Convertimos a dataframe temporal
+        users = pd.DataFrame(rows, columns=["id_user", "username", "name", "email", "password"])
+
     except Exception as e:
-        logging.error(f"Error retrieving users: {e}")
+        logging.error(f"❌ Error retrieving users: {e}")
         return {"usernames": {}}, {}
 
     credentials = {"usernames": {}}
     user_ids = {}
 
     for _, user in users.iterrows():
-        username = str(user["username"]).strip().lower()  # 🔥 normaliza a minúsculas
+        username = str(user["username"]).strip().lower()
         credentials["usernames"][username] = {
             "name": user["name"],
             "email": user["email"],
@@ -76,9 +91,8 @@ def get_user_credentials():
         }
         user_ids[username] = user["id_user"]
 
-    logging.debug("✅ User credentials and ID mapping successfully built (normalized).")
+    logging.info("✅ Credentials and ID mapping built successfully.")
     return credentials, user_ids
-
 
 def build_authenticator_once(force_refresh: bool = False):
     """
@@ -197,59 +211,85 @@ def signup_page():
         logging.debug("User clicked 'Back to Login'.")
         st.session_state["show_signup"] = False
 
-def login_page():
-    """Show login form and debug the authentication flow."""
-    st.title("🔐 Login")
-    logging.debug("Rendering login page...")
+def login_page(location: str = "main"):
+    """
+    Renderiza el formulario de login y devuelve:
+    (authentication_status, username, name, authenticator)
 
-    for key in ["authentication_status", "username", "name", "user_id"]:
-        st.session_state.setdefault(key, None)
-
+    - Usa usuarios desde DB si existen.
+    - Si DB está vacía o falla la carga, usa fallback admin desde secrets.
+    - Evita romper si authenticator.login() devuelve None.
+    """
+    # 1) Cargar credenciales desde DB
     try:
-        authenticator = build_authenticator_once()
+        credentials, user_ids = get_user_credentials()  # debe devolver (dict, dict)
     except Exception as e:
-        st.error("Failed to initialize authenticator.")
-        logging.error(f"Authenticator setup failed: {e}")
+        logging.exception(f"❌ Error loading credentials from DB: {e}")
+        credentials, user_ids = {"usernames": {}}, {}
+
+    # 2) Fallback admin si no hay usuarios cargados
+    if not credentials.get("usernames"):
+        logging.warning("⚠️ No users from DB; using fallback admin from secrets.")
+        u = st.secrets.get("admin_username", "admin")
+        n = st.secrets.get("admin_name", "Administrator")
+        p = st.secrets.get("admin_password", "change_me_now")
+        # Hash al vuelo para streamlit-authenticator
+        hashed = stauth.Hasher([p]).generate()[0]
+        credentials = {"usernames": {u: {"name": n, "password": hashed}}}
+        # user_ids opcional para tu app (0 como placeholder)
+        user_ids = {u.lower(): 0}
+
+    # 3) Construir authenticator
+    try:
+        authenticator = stauth.Authenticate(
+            credentials,
+            cookie_name=COOKIE_NAME,
+            key=AUTH_KEY,
+            cookie_expiry_days=15,
+        )
+        st.session_state["authenticator"] = authenticator
+    except Exception as e:
+        logging.exception(f"❌ Authenticator init failed: {e}")
+        st.error(f"No se pudo inicializar el autenticador: {e}")
         return None, None, None, None
 
+    # 4) Pintar formulario y capturar resultado con defensa ante None
     try:
-        # 👇 firma nueva para streamlit-authenticator >= 0.3.0
-        name, authentication_status, username = authenticator.login(
-            fields={
-                "Form name": "Login",
-                "Username": "Username",
-                "Password": "Password"
-            },
-            location="main"  # valores válidos: "main", "sidebar", "unrendered"
+        result = authenticator.login(
+            fields={"Form name": "Login", "Username": "Usuario", "Password": "Contraseña"},
+            location=location,  # 'main' | 'sidebar'
         )
-        logging.debug(f"Login attempt - Username: {username}, Status: {authentication_status}")
     except Exception as e:
-        st.error(f"Authentication error: {e}")
-        logging.error(f"Authenticator login() failed: {e}")
+        logging.exception(f"❌ authenticator.login() failed: {e}")
+        st.error(f"Error en login: {e}")
         return None, None, None, authenticator
 
+    if not result:
+        # Evita "cannot unpack NoneType"
+        logging.warning("Authenticator returned None (no creds UI yet or internal issue).")
+        st.info("Introduce tu usuario y contraseña para iniciar sesión.")
+        return None, None, None, authenticator
 
-    # Handle authentication result
+    name, authentication_status, username = result
+
+    # 5) Manejo de estados
     if authentication_status is True:
-        # ✅ fija todo el estado para el siguiente rerun
-        st.session_state["authentication_status"] = True
+        uname_l = (username or "").strip().lower()
         st.session_state["username"] = username
         st.session_state["name"] = name
+        st.session_state["user_id"] = user_ids.get(uname_l)  # puede ser None si viene del fallback
+        logging.info(f"✅ Login OK: {username} (id={st.session_state.get('user_id')})")
+        return authentication_status, username, name, authenticator
 
-        uid_map = st.session_state.get("user_ids", {})
-        st.session_state["user_id"] = uid_map.get(username)
+    if authentication_status is False:
+        logging.warning("❌ Credenciales incorrectas.")
+        st.error("Usuario o contraseña incorrectos.")
+        return authentication_status, None, None, authenticator
 
-        logging.info(f"User '{username}' logged in successfully.")
-    elif authentication_status is False:
-        logging.warning(f"Login failed for user '{username}'.")
-        st.error("Username/password is incorrect")
-        show_signup_option()
-    elif authentication_status is None:
-        logging.info("Login form displayed, waiting for user input.")
-        st.warning("Please enter your username and password")
-        show_signup_option()
-
-    return authentication_status, username, name, authenticator
+    # authentication_status is None
+    logging.info("ℹ️ Esperando credenciales de usuario.")
+    st.info("Introduce tus credenciales para continuar.")
+    return None, None, None, authenticator
 
 def check_authentication():
     logging.debug("Checking authentication state...")

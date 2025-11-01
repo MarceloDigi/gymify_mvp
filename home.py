@@ -18,7 +18,7 @@ import utils.data_loader as loader
 import database.gsheet_connnector as gsheet_conn
 
 # Fuerza reconfiguración aunque otra librería haya configurado logging antes
-logging.basicConfig(level=logging.WARNING, force=True)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 # Silencia loggers ruidosos explícitamente
 for noisy in (
@@ -28,6 +28,9 @@ for noisy in (
     "git", "git.cmd", "git.util",     # gitpython
 ):
     logging.getLogger(noisy).setLevel(logging.ERROR)
+
+def log_exc(msg, e):
+    logging.error("%s | type=%s | details=%s", msg, type(e).__name__, str(e))
 
 # --- Streamlit page configuration ---
 st.set_page_config(page_title="🏠 Dashboard Inicio", layout="wide")

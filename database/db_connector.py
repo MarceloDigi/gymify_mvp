@@ -10,6 +10,9 @@ import ssl, time, logging
 # ---- Logging: menos ruido y sin escribir archivo en Cloud ----
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+def log_exc(msg, e):
+    logging.error("%s | type=%s | details=%s", msg, type(e).__name__, str(e))
+
 # ---- Lectura de credenciales: 1) st.secrets 2) os.getenv ----
 def _get(key: str, default=None):
     try:
@@ -70,17 +73,34 @@ def get_engine(oltp_db: bool = True):
     )
 
 def get_db_connection(oltp_db=True, retries=3):
-    engine = get_engine(oltp_db=oltp_db)
-    for i in range(retries):
+    eng = get_engine(oltp_db=oltp_db)
+    last = None
+    for i in range(1, retries+1):
+        t0 = time.time()
         try:
-            conn = engine.connect()
-            logging.info("✅ DB connected")
+            conn = eng.connect()
+            dt = (time.time() - t0)*1000
+            logging.info(f"DB connect OK in {dt:.0f} ms (try {i}/{retries})")
             return conn
         except Exception as e:
-            logging.warning(f"DB connect fail {i+1}/{retries}: {e}")
-            time.sleep(3)  # espera y reintenta
-    logging.error("❌ Could not connect to DB after retries.")
+            last = e
+            log_exc(f"DB connect FAIL (try {i}/{retries})", e)
+            time.sleep(2)
+    log_exc("DB connect retries exhausted", last)
     return None
+
+def probe_db(conn):
+    try:
+        t0=time.time()
+        conn.execute(text("SELECT 1"))
+        logging.info("Probe SELECT 1 OK in %.0f ms", (time.time()-t0)*1000)
+        # Opcional: ver timeouts del server
+        row = conn.execute(text("SHOW VARIABLES LIKE 'wait_timeout'")).first()
+        if row: logging.info("MySQL wait_timeout=%s", row[1])
+        return True
+    except Exception as e:
+        log_exc("Probe failed", e)
+        return False
 
 @st.cache_data(ttl=600, show_spinner=False)
 def query_to_dataframe(query, params=(), oltp_db: bool = True) -> pd.DataFrame:
