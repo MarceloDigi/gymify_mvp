@@ -8,3 +8,7 @@ font = "sans serif"
 [server]
 enableCORS = true
 enableXsrfProtection = true
+fileWatcherType = "none"   # opcional: desactiva watcher (menos redeploys automáticos)
+
+[logger]
+level = "info"
