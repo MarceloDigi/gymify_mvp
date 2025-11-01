@@ -31,8 +31,9 @@ def add_id_set_col(df):
     LIMIT 1;
     """
 
-    id = connector.query_to_dataframe(query)
+    id = connector.query_to_dataframe(query, oltp_db=True)
     last_id = int(id.iloc[0, 0])
+    print(last_id)
 
     df['id_set'] = range(last_id + 1, last_id + 1 + len(df))
 
@@ -60,17 +61,13 @@ def add_1rm_columns(df):
                             np.nan  # Fuera de rango de precisión
                     )
                   ).astype(float).round(1)
-  
-  # Identify the rows with the max 1RM
-  max_rm_exercise = df.loc[df['1rm'].notnull()].groupby('exercise')['1rm'].max().reset_index()
-  max_rm_exercise['is_maxrm'] = 1
-  df['is_maxrm'] = 0
-  df = df.merge(max_rm_exercise, how='left', on=['exercise','1rm'], suffixes=('','_new'))
-  df['is_maxrm'] = df[['is_maxrm','is_maxrm_new']].max(1)
-
-  df.drop(['is_maxrm_new'], axis=1, inplace=True)
 
   return df
+
+def add_ismaxrm_column(df): # <-----------------------------------------------------------------------------------------
+      # Identify the rows with the max 1RM
+    df['is_maxrm'] = 0
+    return df
 
 def add_category_cols(df):
     """
@@ -175,16 +172,12 @@ def add_real_weight_col(df: pd.DataFrame,
     
     return df_merged
 
-def add_training_days_on_week_col(df):
+def add_training_days_on_week_col(df): # <-----------------------------------------------------------------------------------------
     """
     Create a column with the number of training days on the week of each training date.
     """
     # Training days on week
-    if 'training_days_on_week' not in df.columns:
-        df['year_week'] = df['fecha'].dt.strftime('%G-W%V')
-        training_days_by_week = df.groupby('year_week')['fecha'].nunique().reset_index()
-        df = df.merge(training_days_by_week, on='year_week', how='left', suffixes=('','_trained')).drop(columns=['year_week'])
-        df.rename(columns={'fecha_trained':'training_days_on_week'}, inplace=True)
+    df['training_days_on_week'] = 0
     return df
 
 def merge_muscleroles_and_inputdf(df, df_muscleroles):
@@ -246,13 +239,15 @@ def reorder_cols(df: pd.DataFrame, df_muscles: pd.DataFrame):
     'real_weight',
     'effective_set',
     'training_days_on_week',
-    '1rm',
     'is_maxrm',
+    '1rm',
     'repreal_range',
     'rir_range',
-    'progress_tracker'
+    'progress_tracker',
+    'id_user'
     ]
-    order_muscles = ['id_set',
+    order_muscles = [
+    'id_set',
     'muscle_name',
     'routine',
     'fecha',
@@ -271,11 +266,13 @@ def reorder_cols(df: pd.DataFrame, df_muscles: pd.DataFrame):
     'effective_set',
     'effective_sets_by_muscle',
     'training_days_on_week',
-    '1rm',
     'is_maxrm',
+    '1rm',
     'repreal_range',
     'rir_range',
-    'progress_tracker']
+    'progress_tracker',
+    'id_user'
+    ]
 
     df = df[order]
     df_muscles = df_muscles[order_muscles]
@@ -287,12 +284,6 @@ def complete_cleaning(input_user_df, muscle_roles):
     Complete cleaning process for the input user dataframe.
     """
     logging.info("Inicio de complete_cleaning()")
-    try:
-        conn = connector.get_db_connection()
-        logging.info("Conexión DB establecida correctamente.")
-    except Exception as e:
-        logging.exception("❌ Error conectando a la base de datos")
-        return None, None
 
     try:
         df = dw.basic_cleanings(
@@ -323,6 +314,7 @@ def complete_cleaning(input_user_df, muscle_roles):
         df = add_real_weight_col(df)
         df = add_training_days_on_week_col(df)
         df = add_1rm_columns(df)
+        df = add_ismaxrm_column(df)
         df = add_category_cols(df)
         logging.info(f"✅ Feature engineering completado: {len(df)} filas.")
     except Exception as e:

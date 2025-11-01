@@ -98,8 +98,9 @@ def range_col_cleaning(df):
     Clean and split the range column into repmin, repmax and technique.
     """
     # Range column
-    range_sep = df['rango'].str.split(' - ', expand=True).rename(columns={0: 'repmin', 1: 'repmax'})
-    df = pd.concat([df, range_sep], axis=1).drop(columns=['rango'])
+    if 'rango' in df.columns:
+        range_sep = df['rango'].str.split(' - ', expand=True).rename(columns={0: 'repmin', 1: 'repmax'})
+        df = pd.concat([df, range_sep], axis=1).drop(columns=['rango'])
     return df
 
 def rep_concatenate(df, 
