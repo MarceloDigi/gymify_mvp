@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 import logging
 import streamlit as st
+from datetime import datetime
 
 # Cargar .env con ruta absoluta desde la raíz del proyecto
 env_path = Path(__file__).resolve().parent.parent / ".env"
@@ -12,13 +13,13 @@ load_dotenv(dotenv_path=env_path)
 
 # ///////////////////// MySQL Database Connection ////////////////////
 # Configura un logger a archivo con timestamp
-"""log_dir = Path.cwd() / "logs"
+log_dir = Path.cwd() / "logs"
 logfile = log_dir / f"db_connector_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 logging.basicConfig(
     filename=logfile,
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
-)"""
+)
 
 DB_USER = os.getenv("MYSQLUSER")
 DB_PASSWORD = os.getenv("MYSQLPASSWORD")

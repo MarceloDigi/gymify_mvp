@@ -37,7 +37,7 @@ COOKIE_NAME= st.secrets.get("cookie_name", "fitness_dashboard_auth")
 # CONFIGURACIÓN DE LOGGING
 # =============================
 logging.basicConfig(
-    level=logging.DEBUG,  # Cambia a INFO en producción
+    level=logging.INFO,  # Cambia a INFO en producción
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler()]  # Imprime en consola
 )
