@@ -1,11 +1,11 @@
 # database/db_connector.py
-from pathlib import Path
 from sqlalchemy import create_engine, text
 import pandas as pd
 import streamlit as st
 import logging, os
-from datetime import datetime
+from sqlalchemy.pool import NullPool
 from urllib.parse import quote_plus
+import ssl, time, logging
 
 # ---- Logging: menos ruido y sin escribir archivo en Cloud ----
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -54,33 +54,33 @@ def _mysql_url(db_name_key: str) -> str:
 
 @st.cache_resource(show_spinner=False)
 def get_engine(oltp_db: bool = True):
-    url = _mysql_url("MYSQLDATABASE" if oltp_db else "DWHDATABASE")
+    url = st.secrets["db_url"]
     return create_engine(
         url,
-        pool_pre_ping=True,   # comprueba conexión antes de usarla
-        pool_recycle=120,     # recicla conexiones para evitar cortes del proxy
-        pool_size=2,
-        max_overflow=0,
+        poolclass=NullPool,  # evita mantener conexiones dormidas
+        pool_pre_ping=True,
         connect_args={
             "connect_timeout": 10,
             "read_timeout": 10,
             "write_timeout": 10,
-            # Muchos proxies de Railway requieren TLS en el puerto externo
-            "ssl": {"cert_reqs": ssl.CERT_NONE},  # desactiva verificación del cert (útil con proxy)
+            "ssl": {"cert_reqs": ssl.CERT_NONE},  # Railway proxy requiere TLS
             "charset": "utf8mb4",
             "autocommit": True,
         },
     )
 
-def get_db_connection(oltp_db: bool = True):
-    try:
-        eng = get_engine(oltp_db=oltp_db)
-        conn = eng.connect()
-        logging.info(f"✅ Conectado a DB (OLTP={oltp_db})")
-        return conn
-    except Exception as e:
-        logging.exception("❌ Error while connecting to the database.")
-        return None
+def get_db_connection(oltp_db=True, retries=3):
+    engine = get_engine(oltp_db=oltp_db)
+    for i in range(retries):
+        try:
+            conn = engine.connect()
+            logging.info("✅ DB connected")
+            return conn
+        except Exception as e:
+            logging.warning(f"DB connect fail {i+1}/{retries}: {e}")
+            time.sleep(3)  # espera y reintenta
+    logging.error("❌ Could not connect to DB after retries.")
+    return None
 
 @st.cache_data(ttl=600, show_spinner=False)
 def query_to_dataframe(query, params=(), oltp_db: bool = True) -> pd.DataFrame:
