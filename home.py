@@ -10,11 +10,24 @@ Features:
 - **Admin Section**: Information and tools for admin users.
 """
 import streamlit as st
+import logging
 
 # --- Imports ---
 import auth.authenticator as auth
 import utils.data_loader as loader
 import database.gsheet_connnector as gsheet_conn
+
+# Fuerza reconfiguración aunque otra librería haya configurado logging antes
+logging.basicConfig(level=logging.WARNING, force=True)
+
+# Silencia loggers ruidosos explícitamente
+for noisy in (
+    "watchdog",                       # inotify/polling
+    "streamlit.runtime.watch_file",   # watcher interno
+    "streamlit.watcher",              # watcher legacy
+    "git", "git.cmd", "git.util",     # gitpython
+):
+    logging.getLogger(noisy).setLevel(logging.ERROR)
 
 # --- Streamlit page configuration ---
 st.set_page_config(page_title="🏠 Dashboard Inicio", layout="wide")
