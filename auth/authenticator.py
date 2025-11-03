@@ -230,19 +230,16 @@ def login_page(location: str = "main"):
 
     # 2) Fallback admin si no hay usuarios cargados
     if not credentials.get("usernames"):
-        logging.warning("⚠️ No users from DB; using fallback admin from secrets.")
+        logging.warning("No users from DB; using fallback admin from secrets.")
         u = st.secrets.get("admin_username", "admin")
         n = st.secrets.get("admin_name", "Administrator")
-        p = st.secrets.get("admin_password", "change_me_now")
-    # Hash al vuelo para streamlit-authenticator (0.4.1)
-    try:
-        hashed = stauth.Hasher().hash_passwords([p])[0]
-    except Exception as e:
-        logging.error(f"❌ Error hashing admin password: {e}")
-        hashed = p  # fallback, solo para no romper el flujo (no recomendado en prod)
-
-        credentials = {"usernames": {u: {"name": n, "password": hashed}}}
-        # user_ids opcional para tu app (0 como placeholder)
+        admin_pass = st.secrets.get("admin_password", "change_me_now")
+        try:
+            hashed = stauth.Hasher().hash_passwords([admin_pass])[0]
+        except Exception as e:
+            logging.error(f"Error hashing admin password: {e}")
+            hashed = admin_pass
+        credentials = {"usernames": {u.lower(): {"name": n, "password": hashed}}}
         user_ids = {u.lower(): 0}
 
     # 3) Construir authenticator
