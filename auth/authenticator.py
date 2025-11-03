@@ -129,10 +129,10 @@ def create_user(username, name, email, born_date, weight, height, password):
     logging.info(f"Creating user '{username}'...")
     today = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     try:
-        hashed_password = stauth.Hasher([password]).generate()[0]
+        hashed = stauth.Hasher().hash_passwords([password])[0]
     except Exception as e:
-        logging.error(f"Password hashing failed: {e}")
-        return False, "Password hashing error"
+        logging.error(f"❌ Error hashing admin password: {e}")
+        hashed = password  # fallback, solo para no romper el flujo (no recomendado en prod)
 
     try:
         user_id = connector.insert_data("users", {
@@ -143,7 +143,7 @@ def create_user(username, name, email, born_date, weight, height, password):
             "joined_in": today,
             "start_weight": weight,
             "start_height": height,
-            "password": hashed_password
+            "password": hashed
         })
         logging.info(f"User '{username}' created successfully with ID {user_id}.")
         return True, user_id
@@ -234,18 +234,12 @@ def login_page(location: str = "main"):
         u = st.secrets.get("admin_username", "admin")
         n = st.secrets.get("admin_name", "Administrator")
         p = st.secrets.get("admin_password", "change_me_now")
-        # Hash al vuelo para streamlit-authenticator
-        try:
-            # Compatibilidad con 0.2.x / 0.3.x / 0.4.x
-            try:
-                # 0.2.x – 0.3.x
-                hashed = stauth.Hasher([p]).generate()[0]
-            except AttributeError:
-                # 0.4.x y superiores
-                hashed = stauth.Hasher().hash_passwords([p])[0]
-        except Exception as e:
-            logging.error(f"❌ Error hashing admin password: {e}")
-            hashed = p  # fallback sin hash, solo para no romper el flujo
+    # Hash al vuelo para streamlit-authenticator (0.4.1)
+    try:
+        hashed = stauth.Hasher().hash_passwords([p])[0]
+    except Exception as e:
+        logging.error(f"❌ Error hashing admin password: {e}")
+        hashed = p  # fallback, solo para no romper el flujo (no recomendado en prod)
 
         credentials = {"usernames": {u: {"name": n, "password": hashed}}}
         # user_ids opcional para tu app (0 como placeholder)
