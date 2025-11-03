@@ -236,11 +236,17 @@ def login_page(location: str = "main"):
         p = st.secrets.get("admin_password", "change_me_now")
         # Hash al vuelo para streamlit-authenticator
         try:
-            # versiones antiguas (0.2.x – 0.3.x)
-            hashed = stauth.Hasher([p]).generate()[0]
-        except AttributeError:
-            # 0.4.1 y nuevas: API cambió a método estático .hash()
-            hashed = stauth.Hasher.hash(p)
+            # Compatibilidad con 0.2.x / 0.3.x / 0.4.x
+            try:
+                # 0.2.x – 0.3.x
+                hashed = stauth.Hasher([p]).generate()[0]
+            except AttributeError:
+                # 0.4.x y superiores
+                hashed = stauth.Hasher().hash_passwords([p])[0]
+        except Exception as e:
+            logging.error(f"❌ Error hashing admin password: {e}")
+            hashed = p  # fallback sin hash, solo para no romper el flujo
+
         credentials = {"usernames": {u: {"name": n, "password": hashed}}}
         # user_ids opcional para tu app (0 como placeholder)
         user_ids = {u.lower(): 0}
