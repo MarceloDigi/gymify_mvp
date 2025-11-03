@@ -1,5 +1,6 @@
 import pandas as pd
 import gspread
+import streamlit as st
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 
@@ -7,13 +8,18 @@ def get_gsheet_credentials():
     """
     Get Google Sheets credentials.
     """
-    path1 = os.getenv("GOOGLE_CREDENTIALS_PATH")
-    path2 = os.getenv("GOOGLE_CREDENTIALS_PATH_OTHER")
+    try:
+        path1 = os.getenv("GOOGLE_CREDENTIALS_PATH")
+        path2 = os.getenv("GOOGLE_CREDENTIALS_PATH_OTHER")
+    except Exception:
+        path1 = st.secrets.get("google_credentials_path", None)
+        path2 = None
 
     if path1 and os.path.exists(path1):
         CREDENTIALS_PATH = path1
     elif path2 and os.path.exists(path2):
         CREDENTIALS_PATH = path2
+    elif 
     else:
         raise FileNotFoundError("No se encontraron credenciales válidas.")
 
