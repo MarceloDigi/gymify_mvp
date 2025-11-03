@@ -107,7 +107,7 @@ def query_to_dataframe(query, params=(), oltp_db: bool = True) -> pd.DataFrame:
     conn = get_db_connection(oltp_db=oltp_db)
     if conn is None:
         return pd.DataFrame()
-    df = pd.read_sql_query(query, conn, params=params)
+    df = pd.read_sql_query(text(query), conn, params=params)
     conn.close()
     return df
 

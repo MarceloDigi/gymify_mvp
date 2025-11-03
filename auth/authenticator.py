@@ -28,6 +28,7 @@ Dependencies:
 import streamlit as st
 import streamlit_authenticator as stauth
 import sqlite3
+from sqlalchemy import text
 import logging
 from datetime import datetime
 import time
@@ -64,7 +65,7 @@ def get_user_credentials():
             return {"usernames": {}}, {}
 
         t0 = time.time()
-        rows = conn.execute("SELECT id_user, username, name, email, password FROM users").fetchall()
+        rows = conn.execute(text("SELECT id_user, username, name, email, password FROM users")).fetchall()
         dt = (time.time() - t0) * 1000
         logging.info(f"✅ Users fetched: {len(rows)} in {dt:.0f} ms")
 
@@ -234,7 +235,12 @@ def login_page(location: str = "main"):
         n = st.secrets.get("admin_name", "Administrator")
         p = st.secrets.get("admin_password", "change_me_now")
         # Hash al vuelo para streamlit-authenticator
-        hashed = stauth.Hasher([p]).generate()[0]
+        try:
+            # versiones antiguas (0.2.x – 0.3.x)
+            hashed = stauth.Hasher([p]).generate()[0]
+        except AttributeError:
+            # 0.4.1 y nuevas: API cambió a método estático .hash()
+            hashed = stauth.Hasher.hash(p)
         credentials = {"usernames": {u: {"name": n, "password": hashed}}}
         # user_ids opcional para tu app (0 como placeholder)
         user_ids = {u.lower(): 0}
