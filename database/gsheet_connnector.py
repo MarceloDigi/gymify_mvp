@@ -11,17 +11,16 @@ def get_gsheet_credentials():
     try:
         path1 = os.getenv("GOOGLE_CREDENTIALS_PATH")
         path2 = os.getenv("GOOGLE_CREDENTIALS_PATH_OTHER")
+        
+        if path1 and os.path.exists(path1):
+            CREDENTIALS_PATH = path1
+        elif path2 and os.path.exists(path2):
+            CREDENTIALS_PATH = path2
+        else:
+            raise FileNotFoundError("No se encontraron credenciales válidas.")
     except Exception:
         path1 = st.secrets.get("google_credentials_path", None)
-        path2 = None
-
-    if path1 and os.path.exists(path1):
         CREDENTIALS_PATH = path1
-    elif path2 and os.path.exists(path2):
-        CREDENTIALS_PATH = path2
-    elif 
-    else:
-        raise FileNotFoundError("No se encontraron credenciales válidas.")
 
     scope = [
     "https://spreadsheets.google.com/feeds",
@@ -35,7 +34,12 @@ def get_gsheet_credentials():
 
 def read_gsheet(spreadsheet_key: str = None, worksheet: str = None) -> pd.DataFrame:
     client = get_gsheet_credentials()
-    key = os.getenv(spreadsheet_key)
+
+    try:
+        key = os.getenv(spreadsheet_key)
+    except Exception:
+        key = st.secrets.get(spreadsheet_key, None)
+        
     spreadsheet = client.open_by_key(key)
 
     worksheet_open = spreadsheet.worksheet(worksheet)

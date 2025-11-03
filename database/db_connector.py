@@ -56,7 +56,7 @@ def _mysql_url(db_name_key: str) -> str:
     return f"{engine}://{quote_plus(user)}:{quote_plus(pwd)}@{host}{port_part}/{name}"
 
 @st.cache_resource(show_spinner=False)
-def get_engine(oltp_db: bool = True):
+def get_engine():
     url = st.secrets["db_url"]
     return create_engine(
         url,
