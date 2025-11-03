@@ -231,16 +231,25 @@ def login_page(location: str = "main"):
     # 2) Fallback admin si no hay usuarios cargados
     if not credentials.get("usernames"):
         logging.warning("No users from DB; using fallback admin from secrets.")
-        u = st.secrets.get("admin_username", "admin")
-        n = st.secrets.get("admin_name", "Administrator")
+        admin_username = st.secrets.get("admin_username", "admin")
+        admin_name = st.secrets.get("admin_name", "Administrator")
         admin_pass = st.secrets.get("admin_password", "change_me_now")
+
         try:
-            hashed = stauth.Hasher().hash_passwords([admin_pass])[0]
-        except Exception as e:
-            logging.error(f"Error hashing admin password: {e}")
-            hashed = admin_pass
-        credentials = {"usernames": {u.lower(): {"name": n, "password": hashed}}}
-        user_ids = {u.lower(): 0}
+            hashed_admin = stauth.Hasher.hash(admin_pass)
+        except Exception as err:
+            logging.error(f"Error hashing admin password: {err}")
+            hashed_admin = admin_pass  # final fallback
+
+        credentials = {
+            "usernames": {
+                admin_username.lower(): {
+                    "name": admin_name,
+                    "password": hashed_admin,
+                }
+            }
+        }
+        user_ids = {admin_username.lower(): 0}
 
     # 3) Construir authenticator
     try:
