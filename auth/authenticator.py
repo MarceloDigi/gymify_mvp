@@ -129,7 +129,7 @@ def create_user(username, name, email, born_date, weight, height, password):
     logging.info(f"Creating user '{username}'...")
     today = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     try:
-        hashed = stauth.Hasher().hash_passwords([password])[0]
+        hashed = stauth.Hasher.hash(password)
     except Exception as e:
         logging.error(f"❌ Error hashing admin password: {e}")
         hashed = password  # fallback, solo para no romper el flujo (no recomendado en prod)
