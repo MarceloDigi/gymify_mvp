@@ -56,8 +56,13 @@ def _mysql_url(db_name_key: str) -> str:
     return f"{engine}://{quote_plus(user)}:{quote_plus(pwd)}@{host}{port_part}/{name}"
 
 @st.cache_resource(show_spinner=False)
-def get_engine():
-    url = st.secrets["db_url"]
+def get_engine(oltp_db):
+    if oltp_db:
+        url = _mysql_url("MYSQLDATABASE")
+        logging.debug("Using OLTP DB URL")
+    else:
+        url = _mysql_url("DWHDATABASE")
+        logging.debug("Using OLAP DB URL")
     return create_engine(
         url,
         poolclass=NullPool,  # evita mantener conexiones dormidas
